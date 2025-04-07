@@ -1,7 +1,6 @@
 From Coq Require Import Init Program.Equality.
 From Coinduction Require Import all.
 From RelationAlgebra Require Import
-     monoid
      kat
      kat_tac
      prop
@@ -9,7 +8,8 @@ From RelationAlgebra Require Import
      srel
      comparisons
      rewriting
-     normalisation.
+     normalisation
+     monoid.
 
 Import CoindNotations.
 
@@ -50,10 +50,6 @@ Module LockLTS.
 End LockLTS.
 
 Import LTS.
-(*#[export] Instance trans_rewrite l : Proper (St.(Eq) ==> St.(Eq) ==> iff) (trans l).
-Proof.
-  typeclasses eauto.
-Qed.*)
 
 #[global] Instance : Proper (weq ==> eq ==> eq ==> iff) (hrel_of (n := St) (m := St)).
 Proof.
@@ -74,47 +70,17 @@ Definition is_tau_state st :=
 Definition is_obs_state st :=
   forall l st', trans l st st' -> is_obs l = true.
 
-(*(* P is true after a certain amount of tau steps *)
-Inductive taustarP (P : St -> Prop) : St -> Prop :=
-| taustarP_id s : P s -> taustarP P s
-| taustarP_tau s s' : trans tau s s' -> taustarP P s' -> taustarP P s.
-
-(*Definition taustar s s' := taustarP (fun s => s = s') s.*)
-
-Inductive taustar : St -> St -> Prop :=
-| taustar_id s : taustar s s
-| taustar_tau s s' s'' : trans tau s s' -> taustar s' s'' -> taustar s s''.
-
-Definition wtrans l s s' :=
-  exists s0 s1, taustar s s0 /\ trans l s0 s1 /\ taustar s1 s'.*)
-
 Create HintDb optsim.
 #[local] Ltac esim := eauto 10 with optsim.
-(*#[export] Hint Constructors taustar : optsim.
-#[export] Hint Unfold wtrans : optsim.*)
 
-(*Lemma trans_wtrans : forall l s s',
-  trans l s s' -> wtrans l s s'.
-Proof.
-  intros. exists s, s'. repeat split; auto with optsim.
-Qed.
-#[export] Hint Resolve trans_wtrans : optsim.
-
+(*
 #[export] Instance Transitive_taustar : Transitive taustar.
 Proof.
   red. intros. induction H; auto.
   apply IHtaustar in H0.
   eright; eauto.
 Qed.
-
-Lemma taustar_wtrans : forall l s s' s'',
-  taustar s s' -> wtrans l s' s'' -> wtrans l s s''.
-Proof.
-  intros.
-  destruct H0 as (? & ? & ? & ? & ?).
-  exists x, x0; repeat split; auto.
-  etransitivity; eauto.
-Qed.*)
+*)
 
 Module WSOpt.
 
@@ -136,12 +102,13 @@ Qed.
 
 Definition diverges := gfp divergesF.
 
-Definition extrans (st : St) : Prop :=
-  exists l st', trans l st st'.
+Variant extrans (st : St) : Prop :=
+trans_intro l st' : trans l st st' -> extrans st.
+Hint Constructors extrans : optsim.
 
 #[export] Instance : Proper (St.(Eq) ==> flip impl) extrans.
 Proof.
-  cbn. unfold extrans. intros. now setoid_rewrite H.
+  cbn. intros ??? []. rewrite <- H in H0. eauto with optsim.
 Qed.
 
 Definition is_stuck (st : St) : Prop :=
@@ -151,14 +118,6 @@ Definition is_stuck (st : St) : Prop :=
 Proof.
   cbn. unfold is_stuck. intros. now setoid_rewrite H.
 Qed.
-
-(*Inductive ws_delay
-  (P : St -> St -> Prop) : St -> St -> Prop :=
-| wsd_d s s' t : ws_delay P s' t -> trans tau s s' -> ws_delay P s t
-| wsd_id s t : P s t -> ws_delay P s t.*)
-
-From RelationAlgebra Require Import
-     monoid.
 
 Section SimDef.
 
@@ -237,7 +196,7 @@ Variant SimAnswer (R Rind : relation St) s' t l : Prop :=
 | ans_exact l' t' (TR : trans l' t t') (SIM : R s' t') (LBL : RL l l')
 | ans_compress (_ : compress = WSOpt.compress_coind) (SIM : R s' t) (LBL : l = tau)
 | ans_div (_ : compress = WSOpt.compress_ind) (SIM : Rind s' t) (LBL : l = tau)
-| ans_expand l' t' (_ : expand = WSOpt.expand) (TR : ((trans tau)^* ⋅ trans l') t t') (SIM : R s' t') (LBL : RL l l')
+| ans_expand l' t' (_ : expand = WSOpt.expand) (TR : ((trans tau)^+ ⋅ trans l') t t') (SIM : R s' t') (LBL : RL l l')
 .
 Hint Constructors SimAnswer : optsim.
 
@@ -251,22 +210,8 @@ Proof.
 Qed.
 
 Definition simIndF R Rind s t :=
-  (forall o s', trans (obs o) s s' ->
-    ObsAnswer R s' t o
-    (*exists o' t',
-        (trans (obs o') t t' \/
-        (expand = WSOpt.expand /\ ((trans tau)^* ⋅ trans (obs o')) t t')) /\
-      R s' t' /\
-      Robs o o'*)
-  ) /\
-  (forall s', trans tau s s' ->
-    TauAnswer R Rind s' t
-  (*exists t', 
-    ((trans tau t t' /\ R s' t') \/
-    (compress = WSOpt.compress_coind /\ St.(Eq) t t' /\ R s' t') \/
-    (compress = WSOpt.compress_ind /\ St.(Eq) t t' /\ simInd R s' t') \/
-    (expand = WSOpt.expand /\ (trans tau)^+ t t' /\ R s' t')
-    )*)) /\
+  (forall o s', trans (obs o) s s' -> ObsAnswer R s' t o) /\
+  (forall s', trans tau s s' -> TauAnswer R Rind s' t) /\
   (lock = WSOpt.nolock \/ (is_stuck s -> is_stuck t)) (* FIXME tau* in answer *).
 
 Section NoElim.
@@ -313,6 +258,24 @@ Definition sim_alt' R s t :=
   (forall l s', trans l s s' -> SimAnswer R (simInd R) s' t l) /\
   (lock = WSOpt.nolock \/ (is_stuck s -> is_stuck t)).
 
+Lemma itr_unfold_l `{laws} `{KA ≪ l} :
+  forall (n : ob X) (x : X n n), x^+ ≡ x + x⋅x^+.
+Proof.
+  intros. now rewrite itr_str_l, str_unfold_l, <- itr_str_l, dotxpls, dotx1 at 1.
+Qed.
+
+Lemma itr_unfold_r `{laws} `{KA ≪ l} :
+  forall (n : ob X) (x : X n n), x^+ ≡ x + x^+⋅x.
+Proof.
+  intros. now rewrite itr_str_r, kleene.str_unfold_r, <- itr_str_r, dotplsx, dot1x at 1.
+Qed.
+
+Lemma str_itr' `{laws} `{KA ≪ l} :
+  forall (n : ob X) (x : X n n), x^+ ≦ x^*.
+Proof.
+  intros. now rewrite str_itr, <- leq_cup_r.
+Qed.
+
 Lemma sim_alt'_equiv : forall R s t, sim_alt R s t <-> sim_alt' R s t.
 Proof.
   split; intro.
@@ -320,68 +283,17 @@ Proof.
     split; auto. intros.
     apply H in H1.
     destruct l; destruct H1; eauto with optsim.
-    econstructor 4; eauto.
-    + now rewrite <- itr_str_r.
-    + constructor.
+    + rewrite str_itr, dotplsx, dot1x in TR.
+      destruct TR as [TR | TR]; eauto with optsim.
+    + rewrite itr_unfold_r in TR; eauto.
+      destruct TR as [TR | TR]; eauto with optsim.
   - destruct H. split; auto; intros.
     apply H in H1.
     destruct l; destruct H1; (try destruct l');
       try discriminate; eauto with optsim exfalso.
-    rewrite <- itr_str_r in TR. eauto with optsim.
+    + eright; eauto. now rewrite <- str_itr'.
+    + econstructor 4; eauto. now rewrite itr_unfold_r, <- leq_cup_r.
 Qed.
-
-(*Inductive sim R Rind s t := mkSim
-{
-  sim_obs : (forall o s', trans (obs o) s s' ->
-    ObsAnswer R s' t o
-    (*exists o' t',
-        (trans (obs o') t t' \/
-        (expand = WSOpt.expand /\ ((trans tau)^* ⋅ trans (obs o')) t t')) /\
-      R s' t' /\
-      Robs o o'*)
-  );
-  sim_tau : (forall s', trans tau s s' ->
-    TauAnswer R Rind s' t
-  (*exists t', 
-    ((trans tau t t' /\ R s' t') \/
-    (compress = WSOpt.compress_coind /\ St.(Eq) t t' /\ R s' t') \/
-    (compress = WSOpt.compress_ind /\ St.(Eq) t t' /\ Rind s' t') \/
-    (expand = WSOpt.expand /\ (trans tau)^+ t t' /\ R s' t')
-    )*));
-  sim_lock : lock = WSOpt.nolock \/ (is_stuck s -> is_stuck t)
-}.
-Hint Constructors sim : optsim.
-
-Inductive simInd R : St -> St -> Prop :=
-| simI s t : sim R (simInd R) s t -> simInd R s t
-.
-Hint Constructors simInd : optsim.
-Print simInd_ind.
-Definition simInd_ind' : forall (R : relation St) (P : St -> St -> Prop)
-  (f0 : compress = WSOpt.compress_ind -> forall s t, (forall s', trans tau s s' -> P s' t) -> P s t)
-  (f1 : forall (s t : St), sim R R s t -> P s t) (t t0 : St)
-  (s : simInd R t t0),
-  P t t0.
-Proof.
-  intros ????. refine (fix F s t (SIM : simInd R s t) {struct SIM} : P s t := _).
-  destruct SIM.
-  destruct H.
-  destruct compress.
-  - specialize (f0 eq_refl).
-    eapply f0. intros. apply sim_tau0 in H. dependent destruction H. admit. admit. apply F. apply SIM. eapply s; eauto.
-  refine (match SIM with
-  | {| sim_tau := _ |} => _
-  end).
-  fix s 7. intros. eapply s. 3: apply s0.
-  destruct s0, H; intros.
-  - eapply f0; eauto.
-  - apply f1.
-Qed.
-  destruct sim_tau0.
-  refine (match s in (simInd _ t1 t2) return (P t1 t2) with
-  | simI R s0 t1 x => _
-  end).
-*)
 
 Lemma simInd_mon : forall R R', R <= R' -> simInd R <= simInd R'.
 Proof.
@@ -463,12 +375,6 @@ Proof.
   now apply H in H0.
 Qed.*)
 
-Lemma str_itr' : forall (l : level) (X : ops),
-  laws l X -> KA ≪ l -> forall (n : ob X) (x : X n n), x^+ ≦ x^*.
-Proof.
-  intros. now rewrite str_itr, <- leq_cup_r.
-Qed.
-
 (* adds a tau on the right *)
 Theorem upto_tau_r' :
   forall s t t'
@@ -502,12 +408,11 @@ Proof.
       apply H2 in TR1 as [_ ->]. eapply tau_weak; eauto. typeclasses eauto.
   + (* deadlock *)
     destruct H1 as [(_ & _ & [])]; auto.
-    right. intro. apply H1 in H3. (*now apply H3 in H0.*) admit.
-Admitted.
+    right. intro. apply H1 in H3. intro. eauto with optsim.
+Qed.
 
 Theorem upto_tau_r'' :
-  forall s t t' t0
-    (*(Hstuck : extrans s \/ lock = WSOpt.nolock)*) (* \/ taustar_det t t' *),
+  forall s t t' t0,
   trans tau t t' ->
   (trans tau t0 t' /\ forall l t'', trans l t0 t'' -> l = tau /\ St.(Eq) t'' t') ->
   `R s t0 ->
@@ -537,7 +442,7 @@ Proof.
   + (* deadlock *)
     destruct H0 as (_ & _ & []); auto.
     right. intros. apply H0 in H3.
-    intro. apply H3. eexists _, _; eapply H2.
+    intro. apply H3. econstructor; eapply H2.
 Admitted.
 
 Theorem upto_tau_r :
@@ -584,19 +489,11 @@ Admitted.
 (* useless if compress_coind is set *)
 Theorem inv_tau_l :
   forall s s' t
-    (*(Hstuck : extrans s \/ lock = WSOpt.nolock)*) (* \/ taustar_det t t' *)
     (Hexpand : expand = WSOpt.expand),
   trans tau s s' ->
   simF `R s t ->
   `R s' t.
 Proof.
-  (*apply tower. {
-    intros ? INC s t t' ?????. red.
-    eapply INC; auto.
-    apply H.
-    apply leq_infx in H1.
-    now apply H1.
-  }*)
   intros. apply sim_alt_equiv in H0.
   destruct H0 as [SIM STUCK].
   apply SIM in H as [].
@@ -609,9 +506,90 @@ Admitted.
 End SimUpTo.
 End SimDef.
 
+Lemma srel_str_ind_l {E : EqType} :
+  forall (P : E -> Prop) (i : srel E E),
+  Proper (E.(Eq) ==> iff) P ->
+  (forall s t : E, i s t -> P t -> P s) ->
+  forall s t : E, i^* s t -> P t -> P s.
+Proof.
+  intros.
+  eset (P' := {| hrel_of := fun s t => P t -> P s|} : srel E E).
+  epose proof (str_ind_l1 (X := srel_monoid_ops)). specialize (H3 E i P'). cbn in H3. eapply H3.
+  - intros. now rewrite H4.
+  - intros. red in H4. destruct H4. eauto.
+  - apply H1.
+  - apply H2.
+  Unshelve.
+  cbn. intros. now rewrite H3, H4.
+Qed.
+
+Lemma srel_str_ind_r {E : EqType} :
+  forall (P : E -> Prop) (i : srel E E),
+  Proper (E.(Eq) ==> iff) P ->
+  (forall s t : E, i s t -> P s -> P t) ->
+  forall s t : E, i^* s t -> P s -> P t.
+Proof.
+  intros.
+  eset (P' := {| hrel_of := fun s t => P s -> P t|} : srel E E).
+  epose proof (str_ind_r1 (X := srel_monoid_ops)). specialize (H3 E i P'). cbn in H3. eapply H3.
+  - intros. now rewrite <- H4.
+  - intros. red in H4. destruct H4. eapply H0; eauto.
+  - apply H1.
+  - apply H2.
+  Unshelve.
+  cbn. intros. now rewrite H3, H4.
+Qed.
+
+Lemma divergesF_taustar : forall (R : Chain divergesF) s s',
+  (trans tau)^* s s' ->
+  `R s' ->
+  `R s.
+Proof.
+  intro. apply tower. admit.
+  intros. rewrite str_itr in H0. destruct H0.
+  - admit.
+  - rewrite itr_str_l in H0. destruct H0.
+    exists x0. split; auto. eapply H. apply H2.
+    now apply (b_chain x).
+Admitted.
+
+Lemma divergesF_tauplus : forall (R : Chain divergesF) s s',
+  (trans tau)^+ s s' ->
+  `R s' ->
+  divergesF `R s.
+Proof.
+  intros. rewrite itr_str_l in H. destruct H.
+  exists x. split; auto. eapply divergesF_taustar; eauto.
+Qed.
+
+Lemma diverges_tauplus : forall s s',
+  (trans tau)^+ s s' ->
+  diverges s' ->
+  diverges s.
+Proof.
+  unfold diverges. apply gfp_prop.
+  intros. apply (b_chain x). eapply divergesF_tauplus; eauto.
+Qed.
+
+
+Lemma sim_diverges : forall lock expand s t,
+  sim WSOpt.compress_ind lock expand s t ->
+  diverges s ->
+  diverges t.
+Proof.
+  red. coinduction R CH.
+  intros. apply (gfp_fp (simF _ _ _)) in H. revert H0. induction H.
+  intros.
+  apply (gfp_fp divergesF) in H0 as (? & ? & ?).
+  apply H in H0. destruct H0.
+  - exists t'; split; eauto.
+  - discriminate.
+  - destruct SIM. eauto.
+  - eapply divergesF_tauplus; eauto.
+Qed.
+
 Theorem sim_inv_tau_l :
   forall compress lock expand s s' t
-    (*(Hstuck : extrans s \/ lock = WSOpt.nolock)*) (* \/ taustar_det t t' *)
     (Hexpand : expand = WSOpt.expand),
   trans tau s s' ->
   sim compress lock expand s t ->
@@ -681,33 +659,25 @@ Program Definition divsimF lock : mon (St -> St -> Prop) :=
   (lock = WSOpt.nolock \/ (is_stuck s -> is_stuck t))
 |}.
 Next Obligation.
-Admitted.
+  repeat split; intros; auto.
+  - apply H0 in H4 as (? & ? & ? & ? & ?). eauto 6.
+  - apply H1 in H4 as (? & ? & ?). eauto.
+Qed.
 
 Lemma divsim_equiv :
   forall s t, sim WSOpt.compress_ind WSOpt.nolock WSOpt.expand s t ->
   gfp (divsimF WSOpt.nolock) s t.
 Proof.
-  coinduction R CH. intros.
-  apply (gfp_fp (simF _ _ _)) in H.
-  revert CH. (*induction H.*)
+  intros. apply (gfp_fp (divsimF _)).
   repeat split; intros.
   - admit.
   - admit.
-  - change (gfp (simF WSOpt.compress_ind WSOpt.nolock WSOpt.expand)) with (sim WSOpt.compress_ind WSOpt.nolock WSOpt.expand) in H.
-    (*revert s t H CH H0. red. coinduction R' CH'.*) (*apply (gfp_fp divergesF).*)
-    intros. apply (gfp_fp divergesF) in H0.
-    destruct H0 as (? & ? & ?).
-    apply H in H0 as [].
-    + apply (gfp_fp divergesF). exists t'. split; auto. admit.
-    + discriminate.
-    + destruct SIM as [SIM _].
-      assert (diverges t) by admit. apply H2.
-    + assert (diverges t') by admit. admit.
+  - intros. now apply sim_diverges in H.
   - auto.
-Abort.
+Admitted.
 
 Theorem upto_sim_l :
-  forall s s' t (Hstuck : extrans s \/ lock = WSOpt.nolock), (* \/ taustar_det t t' *)
+  forall s s' t (Hstuck : extrans s \/ lock = WSOpt.nolock),
   `R s' t ->
   wsim div lock exp ub s s' ->
   `R s t.
