@@ -506,6 +506,55 @@ Admitted.
 End SimUpTo.
 End SimDef.
 
+Theorem sim_tau_r :
+  forall compress lock s t t'
+    (Hstuck : extrans s \/ lock = WSOpt.nolock) (* \/ taustar_det t t' *),
+  (trans tau)^* t t' ->
+  sim compress lock WSOpt.expand s t' ->
+  sim compress lock WSOpt.expand s t.
+Proof.
+  unfold sim. intros ??. apply gfp_prop.
+  intros. eapply upto_tau_r; eauto. apply WSOpt.noub.
+Qed.
+
+Theorem sim_inv_tau_l :
+  forall compress lock s s' t,
+  trans tau s s' ->
+  sim compress lock WSOpt.expand s t ->
+  sim compress lock WSOpt.expand s' t.
+Proof.
+  unfold sim. intros. apply (gfp_fp (simF _ _ _)) in H0. revert H0. eapply gfp_prop.
+  intros. eapply inv_tau_l; eauto. constructor.
+Qed.
+
+Lemma srel_str_ind_l' {E : EqType} :
+  forall (i : srel E E) (P : E -> E -> Prop),
+  Proper (E.(Eq) ==> E.(Eq) ==> iff) P ->
+  (forall s t, E.(Eq) s t -> P s t) ->
+  (forall s t u, i s t -> P t u -> P s u) ->
+  forall s t, i^* s t -> P s t.
+Proof.
+  intros.
+  eset (P' := {| hrel_of := fun s t => P s t|} : srel E E).
+  epose proof (str_ind_l1 (X := srel_monoid_ops)). specialize (H3 E i P'). cbn in H3. eapply H3.
+  - intros. now apply H0.
+  - intros. red in H4. destruct H4. eapply H1; eauto.
+  - apply H2.
+Qed.
+
+Theorem sim_inv_taustar_l :
+  forall compress lock s s' t,
+  (trans tau)^* s s' ->
+  sim compress lock WSOpt.expand s t ->
+  sim compress lock WSOpt.expand s' t.
+Proof.
+  intros. revert H0.
+  eapply srel_str_ind_l' with (i := trans tau) (P := fun s s' => sim _ _ _ s t -> sim _ _ _ s' t); auto.
+  - cbn. intros. now rewrite H0, H1.
+  - intros. rewrite <- H0. apply H1.
+  - intros. apply H1. eapply sim_inv_tau_l; eauto.
+Qed.
+
 Lemma srel_str_ind_l {E : EqType} :
   forall (P : E -> Prop) (i : srel E E),
   Proper (E.(Eq) ==> iff) P ->
@@ -539,6 +588,7 @@ Proof.
   Unshelve.
   cbn. intros. now rewrite H3, H4.
 Qed.
+
 
 Lemma divergesF_taustar : forall (R : Chain divergesF) s s',
   (trans tau)^* s s' ->
@@ -588,18 +638,21 @@ Proof.
   - eapply divergesF_tauplus; eauto.
 Qed.
 
-Theorem sim_inv_tau_l :
-  forall compress lock expand s s' t
-    (Hexpand : expand = WSOpt.expand),
-  trans tau s s' ->
-  sim compress lock expand s t ->
-  sim compress lock expand s' t.
-Proof.
-  intros. red. apply (gfp_fp (simF _ _ _)) in H0. eapply inv_tau_l in H0; eauto. admit.
-Admitted.
-
 Hint Constructors ObsAnswer : optsim.
 Hint Constructors TauAnswer : optsim.
+
+Lemma sim_tau_weak :
+  forall compress lock expand (Hcompress : compress <> WSOpt.compress_ind) s s' t R,
+  simF compress lock expand R s t ->
+  trans tau s s' ->
+  exists t', (trans tau)^* t t' /\ R s' t'.
+Proof.
+  intros. apply H in H0 as [].
+  - exists t'. split; auto. now rewrite <- str_ext.
+  - exists t. split; auto. now rewrite <- str_refl.
+  - easy.
+  - exists t'. split; auto. now rewrite <- str_itr'.
+Qed.
 
 Theorem upto_sim_r :
   forall compress lock expand (R : Chain (simF compress lock expand)) s t t'
@@ -614,22 +667,16 @@ Proof.
     eapply H; eauto.
     apply leq_infx in H2. apply H2, H0.
   }
-  intros.
+  intros. revert t H1. induction H0.
   repeat split; intros; subst.
-  - destruct H0. apply H0 in H2 as [].
+  - apply H0 in H2 as [].
     + apply (gfp_fp (simF _ _ _)) in H1. destruct H1.
-      apply H1 in TR. destruct TR.
-      * eleft; eauto.
-      * eright; eauto.
+      apply H1 in TR. destruct TR; eauto with optsim.
     + destruct TR as [t'' TR1 TR2].
-      destruct TR1. clear H0. assert (H0 : True) by apply I. revert t' H0 H1 H3. induction x0; intros.
-      * cbn in H3. rewrite <- H3 in TR2.
-        apply (gfp_fp (simF _ _ _)) in H1. apply H1 in TR2.
-        destruct TR2.
-        --eleft; info_eauto.
-        --eright; info_eauto.
-      * cbn in H3. destruct H3. eapply sim_inv_tau_l in H1; eauto.
-  - destruct H0. apply H0 in H2 as [].
+      subst. eapply sim_inv_taustar_l in H1; eauto.
+      apply (gfp_fp (simF _ _ _)) in H1.
+      apply H1 in TR2. destruct TR2; eauto with optsim.
+  - apply H0 in H2 as [].
     + (* tau_exact *) apply (gfp_fp (simF _ _ _)) in H1. destruct H1.
       apply H1 in TR as ?. destruct H2; eauto with optsim.
       * (* compress_coind *) destruct compress; try discriminate. apply tau_compress; auto. eapply H; eauto.
@@ -637,12 +684,17 @@ Proof.
     + (* tau_compress *) subst compress.
       eapply tau_compress; eauto.
     + (* tau_div *) subst compress.
-      eapply tau_div; auto. admit. (* induction *)
+      eapply tau_div; auto.
+      now apply SIM.
     + (* tau_expand *)
-      assert (exists t1, (trans tau)^+ t t1 /\ sim WSOpt.nocompress lock expand t'0 t1) by admit. (* /\ n' <= n *)
-      destruct H3. eapply tau_expand; auto. apply H3. eapply H; auto. apply SIM. admit.
+      rewrite itr_str_r in TR. destruct TR as [t'1 TR1 TR2].
+      subst.
+      eapply sim_inv_taustar_l in H1; eauto.
+      apply (gfp_fp (simF _ _ _)) in H1.
+      apply H1 in TR2.
+      destruct compress; destruct TR2; try discriminate; eauto with optsim.
   - destruct H0. apply (gfp_fp (simF _ _ _)) in H1 as [(_ & _ & ?)]. intuition.
-Admitted.
+Qed.
 
 (* direct definition of divergence-sensitive weak simulation *)
 Program Definition divsimF lock : mon (St -> St -> Prop) :=
@@ -676,7 +728,7 @@ Proof.
   - auto.
 Admitted.
 
-Theorem upto_sim_l :
+(*Theorem upto_sim_l :
   forall s s' t (Hstuck : extrans s \/ lock = WSOpt.nolock),
   `R s' t ->
   wsim div lock exp ub s s' ->
@@ -700,7 +752,7 @@ Proof.
 Abort.
 
 
-(*Lemma wsim_obs' :
+Lemma wsim_obs' :
   forall s t
     (Hstuck : extrans s \/ lock = WSOpt.nolock),
   is_obs_state s ->
@@ -714,7 +766,7 @@ Proof.
   - now eapply diverges_obs_state in H2.
   - destruct Hstuck; try discriminate.
     now apply H2 in H1.
-Qed.*)
+Qed.
 
 Lemma wsim_obs :
   forall s t
@@ -749,3 +801,4 @@ Proof.
     now apply H2 in H1.
     apply H1.
 Abort.
+*)
