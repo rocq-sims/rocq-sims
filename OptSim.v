@@ -13,22 +13,40 @@ From RelationAlgebra Require Import
 
 Import CoindNotations.
 
-Module LTS.
 
-  Parameter Observable : Set.
-  Variant label := obs (s : Observable) | tau.
-  Parameter St : EqType.
-  Parameter trans : label -> srel St St.
-  Parameter epsilon : srel St St.
-  Parameter Robs : Observable -> Observable -> Prop.
-  Parameter ub_state : St -> Prop. (* FIXME Proper *)
-  (*Parameter eq : St -> St -> Prop.*)
+Module SimOpt.
 
-End LTS.
+  Variant compress_opt := compress_ind | compress_coind | nocompress.
+  Definition div := compress_ind.
+  Variant lock_opt := lock | nolock.
+  Variant expand_opt := expand | noexpand.
+  Variant ub_opt := noub | ub | ttub. (* TODO can non-TT UB be characterized just as "every transition is possible"? *)
 
-Variant label {S : Set} := obs (s : S) | tau.
+End SimOpt.
 
-Module LockLTS.
+Variant label {S : Type} := obs (s : S) | tau.
+
+Record LTS := {
+  Observable : Type;
+  St : EqType;
+  trans : @label Observable -> srel St St;
+  epsilon : srel St St;
+  Robs : Observable -> Observable -> Prop;
+  ub_state : St -> Prop;
+}.
+
+Section WithLTS.
+
+Context (lts : LTS).
+Let Observable := lts.(Observable).
+Let St := lts.(St).
+Let trans := lts.(trans).
+Let epsilon := lts.(epsilon).
+Let Robs := lts.(Robs).
+Let ub_state := lts.(ub_state).
+Let label := @label Observable.
+
+(*Module LockLTS.
 
   Variant Observable := | Event (e : LTS.Observable) | NoEvent.
   Definition St := (bool * LTS.St)%type.
@@ -47,9 +65,7 @@ Module LockLTS.
   Definition ub_state : St -> Prop. Admitted.
   (*Parameter eq : St -> St -> Prop.*)
 
-End LockLTS.
-
-Import LTS.
+End LockLTS.*)
 
 #[global] Instance : Proper (weq ==> eq ==> eq ==> iff) (hrel_of (n := St) (m := St)).
 Proof.
@@ -72,25 +88,6 @@ Definition is_obs_state st :=
 
 Create HintDb optsim.
 #[local] Ltac esim := eauto 10 with optsim.
-
-(*
-#[export] Instance Transitive_taustar : Transitive taustar.
-Proof.
-  red. intros. induction H; auto.
-  apply IHtaustar in H0.
-  eright; eauto.
-Qed.
-*)
-
-Module WSOpt.
-
-  Variant compress_opt := compress_ind | compress_coind | nocompress.
-  Definition div := compress_ind.
-  Variant lock_opt := lock | nolock.
-  Variant expand_opt := expand | noexpand.
-  Variant ub_opt := noub | ub | ttub. (* TODO can non-TT UB be characterized just as "every transition is possible"? *)
-
-End WSOpt.
 
 Program Definition divergesF : mon (St -> Prop) :=
 {| body R st :=
@@ -121,14 +118,14 @@ Qed.
 
 Section SimDef.
 
-Context (compress : WSOpt.compress_opt)
-  (lock : WSOpt.lock_opt)
-  (expand : WSOpt.expand_opt)
-  (ub : WSOpt.ub_opt).
+Context (compress : SimOpt.compress_opt)
+  (lock : SimOpt.lock_opt)
+  (expand : SimOpt.expand_opt)
+  (ub : SimOpt.ub_opt).
 
 Variant ObsAnswer (R : relation St) s' t o : Prop :=
 | ans_obs o' t' (TR : trans (obs o') t t') (SIM : R s' t') (OBS : Robs o o') : ObsAnswer R s' t o
-| ans_delay_obs o' t' (_ : expand = WSOpt.expand) (TR : ((trans tau)^* ⋅ trans (obs o')) t t') (SIM : R s' t') (OBS : Robs o o') : ObsAnswer R s' t o
+| ans_delay_obs o' t' (_ : expand = SimOpt.expand) (TR : ((trans tau)^* ⋅ trans (obs o')) t t') (SIM : R s' t') (OBS : Robs o o') : ObsAnswer R s' t o
 .
 Hint Constructors ObsAnswer : optsim.
 
@@ -143,9 +140,9 @@ Qed.
 (* delay/freeze *)
 Variant TauAnswer (R Rind : relation St) s' t : Prop :=
 | tau_exact t' (TR : trans tau t t') (SIM : R s' t')
-| tau_compress (_ : compress = WSOpt.compress_coind) (SIM : R s' t)
-| tau_div (_ : compress = WSOpt.compress_ind) (SIM : Rind s' t)
-| tau_expand t' (_ : expand = WSOpt.expand) (TR : (trans tau)^+ t t') (SIM : R s' t')
+| tau_compress (_ : compress = SimOpt.compress_coind) (SIM : R s' t)
+| tau_div (_ : compress = SimOpt.compress_ind) (SIM : Rind s' t)
+| tau_expand t' (_ : expand = SimOpt.expand) (TR : (trans tau)^+ t t') (SIM : R s' t')
 .
 Hint Constructors TauAnswer : optsim.
 
@@ -159,8 +156,8 @@ Proof.
 Qed.
 
 Lemma tau_weak :
-  compress = WSOpt.compress_coind ->
-  expand = WSOpt.expand ->
+  compress = SimOpt.compress_coind ->
+  expand = SimOpt.expand ->
   forall R Rind s' t t',
   Proper (St.(Eq) ==> St.(Eq) ==> iff) R ->
   (trans tau)^* t t' -> R s' t' -> TauAnswer R Rind s' t.
@@ -172,8 +169,8 @@ Proof.
 Qed.
 
 Lemma tau_weak_div :
-  compress = WSOpt.compress_ind ->
-  expand = WSOpt.expand ->
+  compress = SimOpt.compress_ind ->
+  expand = SimOpt.expand ->
   forall R Rind s' t t',
   Proper (St.(Eq) ==> St.(Eq) ==> iff) Rind ->
   subrelation Rind R ->
@@ -194,9 +191,9 @@ Definition RL l l' :=
 
 Variant SimAnswer (R Rind : relation St) s' t l : Prop :=
 | ans_exact l' t' (TR : trans l' t t') (SIM : R s' t') (LBL : RL l l')
-| ans_compress (_ : compress = WSOpt.compress_coind) (SIM : R s' t) (LBL : l = tau)
-| ans_div (_ : compress = WSOpt.compress_ind) (SIM : Rind s' t) (LBL : l = tau)
-| ans_expand l' t' (_ : expand = WSOpt.expand) (TR : ((trans tau)^+ ⋅ trans l') t t') (SIM : R s' t') (LBL : RL l l')
+| ans_compress (_ : compress = SimOpt.compress_coind) (SIM : R s' t) (LBL : l = tau)
+| ans_div (_ : compress = SimOpt.compress_ind) (SIM : Rind s' t) (LBL : l = tau)
+| ans_expand l' t' (_ : expand = SimOpt.expand) (TR : ((trans tau)^+ ⋅ trans l') t t') (SIM : R s' t') (LBL : RL l l')
 .
 Hint Constructors SimAnswer : optsim.
 
@@ -212,7 +209,7 @@ Qed.
 Definition simIndF R Rind s t :=
   (forall o s', trans (obs o) s s' -> ObsAnswer R s' t o) /\
   (forall s', trans tau s s' -> TauAnswer R Rind s' t) /\
-  (lock = WSOpt.nolock \/ (is_stuck s -> is_stuck t)) (* FIXME tau* in answer *).
+  (lock = SimOpt.nolock \/ (is_stuck s -> is_stuck t)) (* FIXME tau* in answer *).
 
 Section NoElim.
 #[local] Unset Elimination Schemes.
@@ -241,7 +238,7 @@ Definition sim_alt R s t :=
     | obs o => ObsAnswer R s' t o
     | tau => TauAnswer R (simInd R) s' t
     end) /\
-  (lock = WSOpt.nolock \/ (is_stuck s -> is_stuck t)).
+  (lock = SimOpt.nolock \/ (is_stuck s -> is_stuck t)).
 
 Lemma sim_alt_equiv : forall R s t, simInd R s t <-> sim_alt R s t.
 Proof.
@@ -256,7 +253,7 @@ Qed.
 
 Definition sim_alt' R s t :=
   (forall l s', trans l s s' -> SimAnswer R (simInd R) s' t l) /\
-  (lock = WSOpt.nolock \/ (is_stuck s -> is_stuck t)).
+  (lock = SimOpt.nolock \/ (is_stuck s -> is_stuck t)).
 
 Lemma itr_unfold_l `{laws} `{KA ≪ l} :
   forall (n : ob X) (x : X n n), x^+ ≡ x + x⋅x^+.
@@ -345,8 +342,8 @@ Definition sim := gfp simF.
 
 Section SimUpTo.
 
-Context (*(div : WSOpt.div_opt) (lock : WSOpt.lock_opt)
-  (exp : WSOpt.exp_opt) (ub : WSOpt.ub_opt)*)
+Context (*(div : SimOpt.div_opt) (lock : SimOpt.lock_opt)
+  (exp : SimOpt.exp_opt) (ub : SimOpt.ub_opt)*)
   (R : Chain simF).
 
 Definition upto_refl `{Reflexive _ Robs} :
@@ -378,7 +375,7 @@ Qed.*)
 (* adds a tau on the right *)
 Theorem upto_tau_r' :
   forall s t t'
-    (Hcompress : compress = WSOpt.compress_coind),
+    (Hcompress : compress = SimOpt.compress_coind),
   (trans tau t t' /\ forall l t'', trans l t t'' -> l = tau /\ t'' = t') ->
   `R s t ->
   `R s t'.
@@ -447,8 +444,8 @@ Admitted.
 
 Theorem upto_tau_r :
   forall s t t'
-    (Hstuck : extrans s \/ lock = WSOpt.nolock) (* \/ taustar_det t t' *)
-    (Hexpand : expand = WSOpt.expand),
+    (Hstuck : extrans s \/ lock = SimOpt.nolock) (* \/ taustar_det t t' *)
+    (Hexpand : expand = SimOpt.expand),
   (trans tau)^* t t' ->
   `R s t' ->
   `R s t.
@@ -489,7 +486,7 @@ Admitted.
 (* useless if compress_coind is set *)
 Theorem inv_tau_l :
   forall s s' t
-    (Hexpand : expand = WSOpt.expand),
+    (Hexpand : expand = SimOpt.expand),
   trans tau s s' ->
   simF `R s t ->
   `R s' t.
@@ -508,20 +505,20 @@ End SimDef.
 
 Theorem sim_tau_r :
   forall compress lock s t t'
-    (Hstuck : extrans s \/ lock = WSOpt.nolock) (* \/ taustar_det t t' *),
+    (Hstuck : extrans s \/ lock = SimOpt.nolock) (* \/ taustar_det t t' *),
   (trans tau)^* t t' ->
-  sim compress lock WSOpt.expand s t' ->
-  sim compress lock WSOpt.expand s t.
+  sim compress lock SimOpt.expand s t' ->
+  sim compress lock SimOpt.expand s t.
 Proof.
   unfold sim. intros ??. apply gfp_prop.
-  intros. eapply upto_tau_r; eauto. apply WSOpt.noub.
+  intros. eapply upto_tau_r; eauto. apply SimOpt.noub.
 Qed.
 
 Theorem sim_inv_tau_l :
   forall compress lock s s' t,
   trans tau s s' ->
-  sim compress lock WSOpt.expand s t ->
-  sim compress lock WSOpt.expand s' t.
+  sim compress lock SimOpt.expand s t ->
+  sim compress lock SimOpt.expand s' t.
 Proof.
   unfold sim. intros. apply (gfp_fp (simF _ _ _)) in H0. revert H0. eapply gfp_prop.
   intros. eapply inv_tau_l; eauto. constructor.
@@ -545,8 +542,8 @@ Qed.
 Theorem sim_inv_taustar_l :
   forall compress lock s s' t,
   (trans tau)^* s s' ->
-  sim compress lock WSOpt.expand s t ->
-  sim compress lock WSOpt.expand s' t.
+  sim compress lock SimOpt.expand s t ->
+  sim compress lock SimOpt.expand s' t.
 Proof.
   intros. revert H0.
   eapply srel_str_ind_l' with (i := trans tau) (P := fun s s' => sim _ _ _ s t -> sim _ _ _ s' t); auto.
@@ -623,7 +620,7 @@ Qed.
 
 
 Lemma sim_diverges : forall lock expand s t,
-  sim WSOpt.compress_ind lock expand s t ->
+  sim SimOpt.compress_ind lock expand s t ->
   diverges s ->
   diverges t.
 Proof.
@@ -642,7 +639,7 @@ Hint Constructors ObsAnswer : optsim.
 Hint Constructors TauAnswer : optsim.
 
 Lemma sim_tau_weak :
-  forall compress lock expand (Hcompress : compress <> WSOpt.compress_ind) s s' t R,
+  forall compress lock expand (Hcompress : compress <> SimOpt.compress_ind) s s' t R,
   simF compress lock expand R s t ->
   trans tau s s' ->
   exists t', (trans tau)^* t t' /\ R s' t'.
@@ -658,7 +655,7 @@ Theorem upto_sim_r :
   forall compress lock expand (R : Chain (simF compress lock expand)) s t t'
     (OBS : Transitive Robs),
   `R s t' ->
-  sim (match compress with WSOpt.compress_ind => WSOpt.nocompress | _ => compress end) lock expand t' t ->
+  sim (match compress with SimOpt.compress_ind => SimOpt.nocompress | _ => compress end) lock expand t' t ->
   `R s t.
 Proof.
   intros ????.
@@ -708,7 +705,7 @@ Program Definition divsimF lock : mon (St -> St -> Prop) :=
     exists t', 
       (trans tau)^* t t' /\ R s' t') /\
   (diverges s -> diverges t) /\
-  (lock = WSOpt.nolock \/ (is_stuck s -> is_stuck t))
+  (lock = SimOpt.nolock \/ (is_stuck s -> is_stuck t))
 |}.
 Next Obligation.
   repeat split; intros; auto.
@@ -717,8 +714,8 @@ Next Obligation.
 Qed.
 
 Lemma divsim_equiv :
-  forall s t, sim WSOpt.compress_ind WSOpt.nolock WSOpt.expand s t ->
-  gfp (divsimF WSOpt.nolock) s t.
+  forall s t, sim SimOpt.compress_ind SimOpt.nolock SimOpt.expand s t ->
+  gfp (divsimF SimOpt.nolock) s t.
 Proof.
   intros. apply (gfp_fp (divsimF _)).
   repeat split; intros.
@@ -728,8 +725,9 @@ Proof.
   - auto.
 Admitted.
 
+
 (*Theorem upto_sim_l :
-  forall s s' t (Hstuck : extrans s \/ lock = WSOpt.nolock),
+  forall s s' t (Hstuck : extrans s \/ lock = SimOpt.nolock),
   `R s' t ->
   wsim div lock exp ub s s' ->
   `R s t.
@@ -754,7 +752,7 @@ Abort.
 
 Lemma wsim_obs' :
   forall s t
-    (Hstuck : extrans s \/ lock = WSOpt.nolock),
+    (Hstuck : extrans s \/ lock = SimOpt.nolock),
   is_obs_state s ->
   (forall o s', trans (obs o) s s' -> exists o' tt' t', trans (obs o') t t' /\ `R s' (tt') /\ Robs o o' /\ trans tau tt' t') ->
   wsimF div lock exp ub `R s t.
@@ -770,7 +768,7 @@ Qed.
 
 Lemma wsim_obs :
   forall s t
-    (Hstuck : extrans s \/ lock = WSOpt.nolock),
+    (Hstuck : extrans s \/ lock = SimOpt.nolock),
   is_obs_state s ->
   (forall o s', trans (obs o) s s' -> exists o' t', trans (obs o') t t' /\ `R s' t' /\ Robs o o') ->
   wsimF div lock exp ub `R s t.
@@ -785,7 +783,7 @@ Qed.
 
 Lemma wsim_tau :
   forall s t
-    (Hstuck : extrans s \/ is_stuck t \/ lock = WSOpt.nolock), (* basically the definition of complete sim *)
+    (Hstuck : extrans s \/ is_stuck t \/ lock = SimOpt.nolock), (* basically the definition of complete sim *)
   is_tau_state s ->
   (forall s', trans tau s s' -> exists t', taustar t t' /\ `R s' t) ->
   wsimF div lock exp ub `R s t.
@@ -802,3 +800,5 @@ Proof.
     apply H1.
 Abort.
 *)
+
+End WithLTS.
