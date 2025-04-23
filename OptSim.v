@@ -31,15 +31,69 @@ Proof.
   intros. now rewrite str_itr, <- leq_cup_r.
 Qed.
 
+Lemma srel_str_ind_l {E : EqType} :
+  forall (P : E -> Prop) (i : srel E E),
+  Proper (E.(Eq) ==> iff) P ->
+  (forall s t : E, i s t -> P t -> P s) ->
+  forall s t : E, i^* s t -> P t -> P s.
+Proof.
+  intros.
+  eset (P' := {| hrel_of := fun s t => P t -> P s|} : srel E E).
+  epose proof (str_ind_l1 (X := srel_monoid_ops)). specialize (H3 E i P'). cbn in H3. eapply H3.
+  - intros. now rewrite H4.
+  - intros. red in H4. destruct H4. eauto.
+  - apply H1.
+  - apply H2.
+  Unshelve.
+  cbn. intros. now rewrite H3, H4.
+Qed.
+
+Lemma srel_str_ind_r {E : EqType} :
+  forall (P : E -> Prop) (i : srel E E),
+  Proper (E.(Eq) ==> iff) P ->
+  (forall s t : E, i s t -> P s -> P t) ->
+  forall s t : E, i^* s t -> P s -> P t.
+Proof.
+  intros.
+  eset (P' := {| hrel_of := fun s t => P s -> P t|} : srel E E).
+  epose proof (str_ind_r1 (X := srel_monoid_ops)). specialize (H3 E i P'). cbn in H3. eapply H3.
+  - intros. now rewrite <- H4.
+  - intros. red in H4. destruct H4. eapply H0; eauto.
+  - apply H1.
+  - apply H2.
+  Unshelve.
+  cbn. intros. now rewrite H3, H4.
+Qed.
+
+Lemma srel_str_ind_l' {E : EqType} :
+  forall (i : srel E E) (P : E -> E -> Prop),
+  Proper (E.(Eq) ==> E.(Eq) ==> iff) P ->
+  (forall s t, E.(Eq) s t -> P s t) ->
+  (forall s t u, i s t -> P t u -> P s u) ->
+  forall s t, i^* s t -> P s t.
+Proof.
+  intros.
+  eset (P' := {| hrel_of := fun s t => P s t|} : srel E E).
+  epose proof (str_ind_l1 (X := srel_monoid_ops)). specialize (H3 E i P'). cbn in H3. eapply H3.
+  - intros. now apply H0.
+  - intros. red in H4. destruct H4. eapply H1; eauto.
+  - apply H2.
+Qed.
+
 Module SimOpt.
 
-  Variant compress_opt := compress_mut | compress_coind | nocompress.
-  Definition div := compress_mut.
+  Variant freeze_opt := freeze_div | freeze | nofreeze.
   Variant lock_opt := lock | nolock.
-  Variant expand_opt := expand | noexpand.
-  Variant ub_opt := noub | ub | ttub. (* TODO can non-TT UB be characterized just as "every transition is possible"? *)
+  Variant delay_opt := delay | nodelay.
 
 End SimOpt.
+
+(*Record SimOptions :=
+{
+  freeze : SimOpt.freeze_opt;
+  lock : SimOpt.lock_opt;
+  delay : SimOpt.delay_opt;
+}.*)
 
 Variant label {S : Type} := obs (s : S) | tau.
 
@@ -148,10 +202,7 @@ Qed.
 
 Section SimDef.
 
-Context (compress : SimOpt.compress_opt)
-  (lock : SimOpt.lock_opt)
-  (expand : SimOpt.expand_opt)
-  (ub : SimOpt.ub_opt).
+Context (freeze : SimOpt.freeze_opt) (lock : SimOpt.lock_opt) (delay : SimOpt.delay_opt).
 
 Variant DTauAnswer (R Rind : relation St) s' t : Prop :=
 | dtau_match t' (TR : trans tau t t') (DIV : R s' t')
@@ -188,7 +239,7 @@ Qed.
 
 Variant ObsAnswer (R : relation St) s' t o : Prop :=
 | ans_obs o' t' (TR : trans (obs o') t t') (SIM : R s' t') (OBS : Robs o o') : ObsAnswer R s' t o
-| ans_delay_obs o' t' (_ : expand = SimOpt.expand) (TR : ((trans tau)^* ⋅ trans (obs o')) t t') (SIM : R s' t') (OBS : Robs o o') : ObsAnswer R s' t o
+| ans_delay_obs o' t' (_ : delay = SimOpt.delay) (TR : ((trans tau)^* ⋅ trans (obs o')) t t') (SIM : R s' t') (OBS : Robs o o') : ObsAnswer R s' t o
 .
 Hint Constructors ObsAnswer : optsim.
 
@@ -203,9 +254,9 @@ Qed.
 (* delay/freeze *)
 Variant TauAnswer (R : relation St) Rdiv s' t : Prop :=
 | tau_exact t' (TR : trans tau t t') (SIM : R s' t')
-| tau_compress (_ : compress = SimOpt.compress_coind) (SIM : R s' t)
-| tau_div (_ : compress = SimOpt.compress_mut) (SIM : R s' t) (DIV : divpresF Rdiv s' t)
-| tau_expand t' (_ : expand = SimOpt.expand) (TR : (trans tau)^+ t t') (SIM : R s' t')
+| tau_freeze (_ : freeze = SimOpt.freeze) (SIM : R s' t)
+| tau_div (_ : freeze = SimOpt.freeze_div) (SIM : R s' t) (DIV : divpresF Rdiv s' t)
+| tau_delay t' (_ : delay = SimOpt.delay) (TR : (trans tau)^+ t t') (SIM : R s' t')
 .
 Hint Constructors TauAnswer : optsim.
 
@@ -219,21 +270,21 @@ Proof.
 Admitted.
 
 Lemma tau_weak :
-  compress = SimOpt.compress_coind ->
-  expand = SimOpt.expand ->
+  freeze = SimOpt.freeze ->
+  delay = SimOpt.delay ->
   forall R Rdiv s' t t',
   Proper (St.(Eq) ==> St.(Eq) ==> iff) R ->
   (trans tau)^* t t' -> R s' t' -> TauAnswer R Rdiv s' t.
 Proof.
   intros -> -> * ? TR SIM.
   rewrite str_itr in TR. destruct TR as [TR | TR].
-  - cbn in TR. apply tau_compress; auto. now rewrite TR.
-  - eapply tau_expand; eauto.
+  - cbn in TR. apply tau_freeze; auto. now rewrite TR.
+  - eapply tau_delay; eauto.
 Qed.
 
 Lemma tau_weak_div :
-  compress = SimOpt.compress_mut ->
-  expand = SimOpt.expand ->
+  freeze = SimOpt.freeze_div ->
+  delay = SimOpt.delay ->
   forall R Rdiv s' t t',
   Proper (St.(Eq) ==> St.(Eq) ==> iff) R ->
   Proper (St.(Eq) ==> St.(Eq) ==> iff) Rdiv ->
@@ -242,7 +293,7 @@ Proof.
   intros -> -> * ?? TR SIM DIV.
   rewrite str_itr in TR. destruct TR as [TR | TR].
   - cbn in TR. apply tau_div; auto. now rewrite TR. admit.
-  - eapply tau_expand; eauto.
+  - eapply tau_delay; eauto.
 Admitted.
 
 Definition RL l l' :=
@@ -256,9 +307,9 @@ Section SimInd.
 
   Variant TauIndAnswer (R Rind : relation St) s' t : Prop :=
   | taui_exact t' (TR : trans tau t t') (SIM : R s' t')
-  | taui_compress (_ : compress = SimOpt.compress_coind) (SIM : R s' t)
-  | taui_div (_ : compress = SimOpt.compress_mut) (SIM : Rind s' t)
-  | taui_expand t' (_ : expand = SimOpt.expand) (TR : (trans tau)^+ t t') (SIM : R s' t')
+  | taui_compress (_ : freeze = SimOpt.freeze) (SIM : R s' t)
+  | taui_div (_ : freeze = SimOpt.freeze_div) (SIM : Rind s' t)
+  | taui_expand t' (_ : delay = SimOpt.delay) (TR : (trans tau)^+ t t') (SIM : R s' t')
   .
   Hint Constructors TauIndAnswer : optsim.
 
@@ -296,9 +347,9 @@ End SimInd.
 
 (*Variant SimAnswer (R Rind : relation St) s' t l : Prop :=
 | ans_exact l' t' (TR : trans l' t t') (SIM : R s' t') (LBL : RL l l')
-| ans_compress (_ : compress = SimOpt.compress_coind) (SIM : R s' t) (LBL : l = tau)
-| ans_div (_ : compress = SimOpt.compress_ind) (SIM : Rind s' t) (LBL : l = tau)
-| ans_expand l' t' (_ : expand = SimOpt.expand) (TR : ((trans tau)^+ ⋅ trans l') t t') (SIM : R s' t') (LBL : RL l l')
+| ans_compress (_ : freeze = SimOpt.freeze) (SIM : R s' t) (LBL : l = tau)
+| ans_div (_ : freeze = SimOpt.freeze_ind) (SIM : Rind s' t) (LBL : l = tau)
+| ans_expand l' t' (_ : delay = SimOpt.delay) (TR : ((trans tau)^+ ⋅ trans l') t t') (SIM : R s' t') (LBL : RL l l')
 .
 Hint Constructors SimAnswer : optsim.
 
@@ -566,9 +617,9 @@ Qed.
 
 (* ok *)
 Lemma divsim_equiv
-  (Hcompress : compress = SimOpt.compress_mut)
+  (Hcompress : freeze = SimOpt.freeze_div)
   (Hlock : lock = SimOpt.nolock)
-  (Hexpand : expand = SimOpt.expand) :
+  (Hexpand : delay = SimOpt.delay) :
   forall b s t, divsim s t ->
   sim b s t.
 Proof.
@@ -591,11 +642,11 @@ Proof.
     rewrite str_itr in H0. destruct H0.
     + apply tau_div. assumption. apply CH. cbn in H0. admit.
       admit.
-    + eapply tau_expand; eauto.
+    + eapply tau_delay; eauto.
   - admit.
 Admitted.
 
-Lemma sim_divpres : forall s t (Hcompress : compress = SimOpt.compress_mut),
+Lemma sim_divpres : forall s t (Hcompress : freeze = SimOpt.freeze_div),
   sim true s t ->
   gfp divpresF s t.
 Proof.
@@ -609,7 +660,7 @@ Proof.
   - admit.
 Admitted.
 
-Lemma sim_f_t : forall s t (Hcompress : compress = SimOpt.compress_mut),
+Lemma sim_f_t : forall s t (Hcompress : freeze = SimOpt.freeze_div),
   sim true s t ->
   sim false s t.
 Proof.
@@ -624,7 +675,7 @@ Proof.
   - admit.
 Admitted.
 
-Lemma simF_f_t : forall (R : Chain simF) s t (Hcompress : compress = SimOpt.compress_mut),
+Lemma simF_f_t : forall (R : Chain simF) s t (Hcompress : freeze = SimOpt.freeze_div),
   simF `R true s t ->
   simF `R false s t.
 Proof.
@@ -643,9 +694,9 @@ Proof.
 Admitted.
 
 Lemma divsim_equiv'
-  (Hcompress : compress = SimOpt.compress_mut)
+  (Hcompress : freeze = SimOpt.freeze_div)
   (Hlock : lock = SimOpt.nolock)
-  (Hexpand : expand = SimOpt.expand) :
+  (Hexpand : delay = SimOpt.delay) :
   forall s t, (forall b, sim b s t) ->
   divsim' s t.
 Proof.
@@ -665,7 +716,7 @@ Proof.
     destruct DIV. apply H2 in H1 as (? & ? & ?). eauto.
 Admitted.
 
-Lemma sim_tau_l (R : Chain simF) (Hcompress : compress = SimOpt.compress_mut) : forall s t,
+Lemma sim_tau_l (R : Chain simF) (Hcompress : freeze = SimOpt.freeze_div) : forall s t,
   is_tau_state s ->
   (forall s', trans tau s s' -> `R true s' t) ->
   `R true s t.
@@ -717,7 +768,7 @@ Qed.*)
 (* adds a tau on the right *)
 (*Theorem upto_tau_r' :
   forall s t t'
-    (Hcompress : compress = SimOpt.compress_coind),
+    (Hcompress : freeze = SimOpt.freeze),
   (trans tau t t' /\ forall l t'', trans l t t'' -> l = tau /\ t'' = t') ->
   `R true s t ->
   `R true s t'.
@@ -774,7 +825,7 @@ Proof.
     apply H0 in H3 as [].
     * apply H2 in TR as [_ ?]. rewrite H3 in SIM.
       econstructor 1; eauto.
-    * apply tau_compress; auto. eapply H; eauto.
+    * apply tau_freeze; auto. eapply H; eauto.
     * apply tau_div; auto. apply SIM; auto.
     * econstructor 4; eauto.
       rewrite itr_str_l in TR |- *. admit.
@@ -787,7 +838,7 @@ Admitted.
 Theorem upto_tau_r :
   forall s t t'
     (Hstuck : extrans s \/ lock = SimOpt.nolock) (* \/ taustar_det t t' *)
-    (Hexpand : expand = SimOpt.expand),
+    (Hexpand : delay = SimOpt.delay),
   (trans tau)^* t t' ->
   `R true s t' ->
   `R true s t.
@@ -829,7 +880,7 @@ Admitted.
 (* useless if compress_coind is set *)
 Theorem inv_tau_l :
   forall s s' t
-    (Hexpand : expand = SimOpt.expand),
+    (Hexpand : delay = SimOpt.delay),
   trans tau s s' ->
   simF `R true s t ->
   `R true s' t.
@@ -845,91 +896,41 @@ Proof.
 Admitted.
 
 End SimUpTo.
-End SimDef.
 
 Theorem sim_tau_r :
-  forall compress lock ub s t t'
-    (Hstuck : extrans s \/ lock = SimOpt.nolock) (* \/ taustar_det t t' *),
+  forall s t t'
+    (Hlock : extrans s \/ lock = SimOpt.nolock) (* \/ taustar_det t t' *)
+    (Hdelay : delay = SimOpt.delay),
   (trans tau)^* t t' ->
-  sim compress lock SimOpt.expand ub true s t' ->
-  sim compress lock SimOpt.expand ub true s t.
+  sim true s t' ->
+  sim true s t.
 Proof.
   unfold sim. intros ???. apply gfp_prop.
   intros. eapply upto_tau_r; eauto.
 Qed.
 
 Theorem sim_inv_tau_l :
-  forall compress lock ub s s' t,
+  forall (Hdelay : delay = SimOpt.delay) s s' t,
   trans tau s s' ->
-  sim compress lock SimOpt.expand ub true s t ->
-  sim compress lock SimOpt.expand ub true s' t.
+  sim true s t ->
+  sim true s' t.
 Proof.
-  unfold sim. intros. apply (gfp_fp (simF _ _ _ _)) in H0. revert H0. eapply gfp_prop.
+  unfold sim. intros. apply (gfp_fp simF) in H0. revert H0. eapply gfp_prop.
   intros. eapply inv_tau_l; eauto.
 Qed.
 
-Lemma srel_str_ind_l' {E : EqType} :
-  forall (i : srel E E) (P : E -> E -> Prop),
-  Proper (E.(Eq) ==> E.(Eq) ==> iff) P ->
-  (forall s t, E.(Eq) s t -> P s t) ->
-  (forall s t u, i s t -> P t u -> P s u) ->
-  forall s t, i^* s t -> P s t.
-Proof.
-  intros.
-  eset (P' := {| hrel_of := fun s t => P s t|} : srel E E).
-  epose proof (str_ind_l1 (X := srel_monoid_ops)). specialize (H3 E i P'). cbn in H3. eapply H3.
-  - intros. now apply H0.
-  - intros. red in H4. destruct H4. eapply H1; eauto.
-  - apply H2.
-Qed.
-
 Theorem sim_inv_taustar_l :
-  forall compress lock ub s s' t,
+  forall (Hdelay : delay = SimOpt.delay) s s' t,
   (trans tau)^* s s' ->
-  sim compress lock SimOpt.expand ub true s t ->
-  sim compress lock SimOpt.expand ub true s' t.
+  sim true s t ->
+  sim true s' t.
 Proof.
   intros. revert H0.
-  eapply srel_str_ind_l' with (i := trans tau) (P := fun s s' => sim _ _ _ _ true s t -> sim _ _ _ _ true s' t); auto.
+  eapply srel_str_ind_l' with (i := trans tau) (P := fun s s' => sim true s t -> sim true s' t); auto.
   - cbn. intros. now rewrite H0, H1.
   - intros. rewrite <- H0. apply H1.
   - intros. apply H1. eapply sim_inv_tau_l; eauto.
 Qed.
-
-Lemma srel_str_ind_l {E : EqType} :
-  forall (P : E -> Prop) (i : srel E E),
-  Proper (E.(Eq) ==> iff) P ->
-  (forall s t : E, i s t -> P t -> P s) ->
-  forall s t : E, i^* s t -> P t -> P s.
-Proof.
-  intros.
-  eset (P' := {| hrel_of := fun s t => P t -> P s|} : srel E E).
-  epose proof (str_ind_l1 (X := srel_monoid_ops)). specialize (H3 E i P'). cbn in H3. eapply H3.
-  - intros. now rewrite H4.
-  - intros. red in H4. destruct H4. eauto.
-  - apply H1.
-  - apply H2.
-  Unshelve.
-  cbn. intros. now rewrite H3, H4.
-Qed.
-
-Lemma srel_str_ind_r {E : EqType} :
-  forall (P : E -> Prop) (i : srel E E),
-  Proper (E.(Eq) ==> iff) P ->
-  (forall s t : E, i s t -> P s -> P t) ->
-  forall s t : E, i^* s t -> P s -> P t.
-Proof.
-  intros.
-  eset (P' := {| hrel_of := fun s t => P s -> P t|} : srel E E).
-  epose proof (str_ind_r1 (X := srel_monoid_ops)). specialize (H3 E i P'). cbn in H3. eapply H3.
-  - intros. now rewrite <- H4.
-  - intros. red in H4. destruct H4. eapply H0; eauto.
-  - apply H1.
-  - apply H2.
-  Unshelve.
-  cbn. intros. now rewrite H3, H4.
-Qed.
-
 
 Lemma divergesF_taustar : forall (R : Chain divergesF) s s',
   (trans tau)^* s s' ->
@@ -963,8 +964,8 @@ Proof.
 Qed.
 
 
-Lemma sim_diverges : forall lock expand ub s t,
-  sim SimOpt.compress_mut lock expand ub true s t ->
+Lemma sim_diverges : forall (Hfreeze : freeze = SimOpt.freeze_div) s t,
+  sim true s t ->
   diverges s ->
   diverges t.
 Proof.
@@ -972,8 +973,8 @@ Proof.
 Qed.
 
 Lemma sim_tau_weak :
-  forall compress lock expand ub s s' t R,
-  simF compress lock expand ub R true s t ->
+  forall s s' t R,
+  simF R true s t ->
   trans tau s s' ->
   exists t', (trans tau)^* t t' /\ R true s' t'.
 Proof.
@@ -984,9 +985,6 @@ Proof.
   - exists t'. split; auto. now rewrite <- str_itr'.
 Qed.
 
-Hint Constructors ObsAnswer : optsim.
-Hint Constructors TauAnswer : optsim.
-
 Lemma diverges_divpres :
   forall s t, diverges t -> divpres s t.
 Proof.
@@ -996,30 +994,12 @@ Proof.
   eleft; eauto.
 Qed.
 
-Lemma divpres_nocompress_r : forall lock expand ub (R : Chain (simF SimOpt.compress_mut lock expand ub)) s t u,
-  `R false s t ->
-  sim SimOpt.nocompress lock expand ub true t u ->
-  `R false s u.
-Proof.
-  intros ????. apply tower. {
-    intros ?????????. eapply H; eauto.
-  }
-  clear R. intros R **.
-  destruct H0 as [? _]. specialize (H0 eq_refl). induction H0. constructor. intros _. constructor. intros ??. apply H0 in H2 as [].
-  - apply (gfp_fp (simF _ _ _ _)) in H1. apply H1 in TR as []; auto.
-    + eleft. apply TR. eapply H. apply DIV. apply SIM.
-    + discriminate.
-    + discriminate.
-    + subst. admit.
-  - right. apply DIV in H1. apply H1; auto.
-Admitted.
-
-Lemma divpres_trans_l : forall compress lock expand ub (R : Chain (simF compress lock expand ub)) s t u,
+Lemma divpres_trans_l : forall (R : Chain simF) s t u,
   `R false t u ->
   divpres s t ->
   `R false s u.
 Proof.
-  intros ?????. apply tower. {
+  intros ?. apply tower. {
     intros ?????????. eapply H; eauto.
   }
   clear R. intros R **.
@@ -1034,14 +1014,37 @@ Proof.
   - apply dtau_div. apply DIV; auto.
 Qed.
 
+End SimDef.
+
+Hint Constructors ObsAnswer : optsim.
+Hint Constructors TauAnswer : optsim.
+
+Lemma divpres_nocompress_r : forall lock expand (R : Chain (simF SimOpt.freeze_div lock expand)) s t u,
+  `R false s t ->
+  sim SimOpt.nofreeze lock expand true t u ->
+  `R false s u.
+Proof.
+  intros ???. apply tower. {
+    intros ?????????. eapply H; eauto.
+  }
+  clear R. intros R **.
+  destruct H0 as [? _]. specialize (H0 eq_refl). induction H0. constructor. intros _. constructor. intros ??. apply H0 in H2 as [].
+  - apply (gfp_fp (simF _ _ _)) in H1. apply H1 in TR as []; auto.
+    + eleft. apply TR. eapply H. apply DIV. apply SIM.
+    + discriminate.
+    + discriminate.
+    + subst. admit.
+  - right. apply DIV in H1. apply H1; auto.
+Admitted.
+
 Theorem upto_sim_r :
-  forall compress lock expand ub (R : Chain (simF compress lock expand ub)) s t t'
+  forall freeze lock delay (R : Chain (simF freeze lock delay)) s t t'
     (OBS : Transitive Robs),
   `R true s t' ->
-  sim (match compress with SimOpt.compress_mut => SimOpt.nocompress | _ => compress end) lock expand ub true t' t ->
+  sim (match freeze with SimOpt.freeze_div => SimOpt.nofreeze | _ => freeze end) lock delay true t' t ->
   `R true s t.
 Proof.
-  intros ?????.
+  intros ????.
   apply tower. {
     intros ??????????. red.
     eapply H; eauto.
@@ -1051,39 +1054,39 @@ Proof.
   split; intros; try discriminate. clear H2.
   repeat split; intros; subst.
   - apply H0 in H2 as []; auto.
-    + apply (gfp_fp (simF _ _ _ _)) in H1. destruct H1 as [_ ?]. specialize (H1 eq_refl).
+    + apply (gfp_fp (simF _ _ _)) in H1. destruct H1 as [_ ?]. specialize (H1 eq_refl).
       apply H1 in TR. destruct TR; eauto with optsim.
     + destruct TR as [t'' TR1 TR2].
       subst. eapply sim_inv_taustar_l in H1; eauto.
-      apply (gfp_fp (simF _ _ _ _)) in H1.
+      apply (gfp_fp (simF _ _ _)) in H1.
       apply H1 in TR2; auto. destruct TR2; eauto with optsim.
   - apply H0 in H2 as []; auto.
-    + (* tau_exact *) apply (gfp_fp (simF _ _ _ _)) in H1. destruct H1 as [_ ?]. specialize (H1 eq_refl).
+    + (* tau_exact *) apply (gfp_fp (simF _ _ _)) in H1. destruct H1 as [_ ?]. specialize (H1 eq_refl).
       apply H1 in TR as ?. destruct H2; eauto with optsim.
-      * (* compress_coind *) destruct compress; try discriminate. apply tau_compress; auto. eapply H; eauto.
-      * (* compress_ind *) destruct compress; discriminate.
-    + (* tau_compress *) subst compress.
-      eapply tau_compress; eauto.
-    + (* tau_div *) subst compress.
-      eapply tau_div; eauto with optsim. assert (simF SimOpt.compress_mut lock expand ub `x false s' t).  eapply divpres_nocompress_r. split. intros _. apply DIV. now intro. apply H1. now apply H2.
-    + (* tau_expand *)
+      * (* compress_coind *) destruct freeze; try discriminate. apply tau_freeze; auto. eapply H; eauto.
+      * (* compress_ind *) destruct freeze; discriminate.
+    + (* tau_freeze *) subst freeze.
+      eapply tau_freeze; eauto.
+    + (* tau_div *) subst freeze.
+      eapply tau_div; eauto with optsim. assert (simF SimOpt.freeze_div lock delay `x false s' t).  eapply divpres_nocompress_r. split. intros _. apply DIV. now intro. apply H1. now apply H2.
+    + (* tau_delay *)
       rewrite itr_str_r in TR. destruct TR as [t'1 TR1 TR2].
       subst.
       eapply sim_inv_taustar_l in H1; eauto.
-      apply (gfp_fp (simF _ _ _ _)) in H1.
+      apply (gfp_fp (simF _ _ _)) in H1.
       apply H1 in TR2; auto.
-      destruct compress; destruct TR2; try discriminate; eauto with optsim.
-  - destruct H0. apply (gfp_fp (simF _ _ _ _)) in H1 as (_ & _ & ?); auto. intuition.
+      destruct freeze; destruct TR2; try discriminate; eauto with optsim.
+  - destruct H0. apply (gfp_fp (simF _ _ _)) in H1 as (_ & _ & ?); auto. intuition.
 Qed.
 
 Theorem upto_sim_l :
-  forall compress lock expand ub (R : Chain (simF compress lock expand ub)) s s' t
+  forall freeze lock delay (R : Chain (simF freeze lock delay)) s s' t
     (OBS : Transitive Robs),
   `R true s' t ->
-  sim compress lock SimOpt.noexpand ub true s s' ->
+  sim freeze lock SimOpt.nodelay true s s' ->
   `R true s t.
 Proof.
-  intros ?????.
+  intros ????.
   apply tower. {
     intros ??????????. red.
     eapply H; eauto.
@@ -1092,26 +1095,26 @@ Proof.
   intros.
   split; intros; try discriminate. clear H2.
   repeat split; intros; subst.
-  - apply (gfp_fp (simF _ _ _ _)) in H1. destruct H1 as [_ ?]. specialize (H1 eq_refl).
+  - apply (gfp_fp (simF _ _ _)) in H1. destruct H1 as [_ ?]. specialize (H1 eq_refl).
     apply H1 in H2 as [].
     + apply H0 in TR; auto. destruct TR; eauto with optsim.
     + discriminate.
-  - apply (gfp_fp (simF _ _ _ _)) in H1. destruct H1 as [_ ?]. specialize (H1 eq_refl).
+  - apply (gfp_fp (simF _ _ _)) in H1. destruct H1 as [_ ?]. specialize (H1 eq_refl).
     apply H1 in H2 as [].
     + (* tau_exact *)
       apply H0 in TR as ?; auto. destruct H2; eauto with optsim.
       (* compress_mut *) subst. apply tau_div; eauto.
-      assert (simF SimOpt.compress_mut lock expand ub `x false s'0 t). eapply divpres_trans_l with (t := t'). split; intro; try discriminate. apply DIV. admit.
+      assert (simF SimOpt.freeze_div lock delay `x false s'0 t). eapply divpres_trans_l with (t := t'). split; intro; try discriminate. apply DIV. admit.
       apply H2; auto.
-    + (* tau_compress *) subst compress.
-      eapply tau_compress; eauto. eapply H; eauto. apply (b_chain x). apply H0.
-    + (* tau_div *) subst compress.
+    + (* tau_freeze *) subst freeze.
+      eapply tau_freeze; eauto. eapply H; eauto. apply (b_chain x). apply H0.
+    + (* tau_div *) subst freeze.
       eapply tau_div; eauto with optsim.
       eapply H; eauto. apply (b_chain x). apply H0.
       apply simF_f_t in H0; auto. apply divpres_trans_l with (s := s'0) in H0. now apply H0. admit.
-    + (* tau_expand *)
+    + (* tau_delay *)
       discriminate.
-  - destruct H0. apply (gfp_fp (simF _ _ _ _)) in H1 as (_ & _ & ?); auto. intuition.
+  - destruct H0. apply (gfp_fp (simF _ _ _)) in H1 as (_ & _ & ?); auto. intuition.
 Admitted.
 
 (*
