@@ -272,6 +272,22 @@ Proof.
   - apply (gfp_fp simF). now constructor.
 Qed.
 
+Lemma sim_tau_weak :
+  forall s s' t R,
+  simF R true s t ->
+  trans tau s s' ->
+  exists t', (trans tau)^* t t' /\ R true s' t'.
+Proof.
+  intros. inversion H; subst. apply H1 in H0 as []; auto.
+  - exists t'. split; auto. now rewrite <- str_ext.
+  - exists t. split; auto. now rewrite <- str_refl.
+  - exists t. split; auto. now rewrite <- str_refl.
+  - exists t'. split; auto. now rewrite <- str_itr'.
+Qed.
+
+
+(* Divergence preservation *)
+
 Lemma chain_div : forall (R : Chain simF) s t,
   diverges t ->
   simF `R false s t.
@@ -302,7 +318,7 @@ Qed.
 
 Lemma divpresF_tau_r : forall (R : Chain simF) s t t',
   `R false s t' ->
-  trans tau t t' ->
+  (trans tau)^* t t' ->
   `R false s t.
 Proof.
   intro. apply tower. {
@@ -312,16 +328,10 @@ Proof.
   apply simF_equiv in H0. induction H0.
   do 2 constructor. intros ??.
   apply H0 in H2 as [].
-  - esim.
+  - assert ((trans tau)^+ t t'). { rewrite itr_str_r. esplit; eassumption. }
+    rewrite itr_str_l in H2. destruct H2. esim.
   - apply dtau_div. apply simF_equiv. now apply DIV.
 Qed.
-
-Lemma divpresF_taustar_r : forall (R : Chain simF) s t t',
-  `R false s t' ->
-  (trans tau)^* t t' ->
-  `R false s t.
-Proof.
-Admitted.
 
 Lemma dtau_plus : forall (R : Chain simF) Rind s' t t',
   (trans tau)^+ t t' ->
@@ -331,9 +341,33 @@ Proof.
   intros.
   rewrite itr_str_l in H. destruct H.
   eapply dtau_match. apply H.
-  eapply divpresF_taustar_r; eauto.
+  eapply divpresF_tau_r; eauto.
 Qed.
 Hint Resolve dtau_plus : optsim.
+
+Lemma divpres_impl : forall s t,
+  sim false s t ->
+  diverges s -> diverges t.
+Proof.
+  red. coinduction R CH. intros.
+  apply (gfp_fp simF) in H. apply simF_equiv in H.
+  induction H. apply (gfp_fp divergesF) in H0 as (? & ? & ?).
+  apply H in H0 as [].
+  - exists t'. eauto.
+  - now apply DIV.
+Qed.
+
+Lemma diverges_divpres :
+  forall s t, diverges t -> sim false s t.
+Proof.
+  red. coinduction R CH.
+  intros. do 2 constructor. intros ??.
+  apply (gfp_fp divergesF) in H as (? & ? & ?).
+  eleft; eauto.
+Qed.
+
+
+(* Divergence-sensitive simulation implies divergence preservation *)
 
 Lemma simF_f_t : forall (Hfreeze : freeze <> SimOpt.freeze) (R : Chain simF) s t,
   simF `R true s t ->
@@ -359,35 +393,12 @@ Proof.
   now rewrite Hfreeze.
 Qed.
 
-Lemma sim_tau_l (R : Chain simF) (Hfreeze : freeze = SimOpt.freeze_div) :
-  forall b s t,
-  is_tau_state s ->
-  forall (Hstuck : extrans s),
-  (forall s', trans tau s s' -> `R b s' t) ->
-  `R b s t.
-Proof.
-  apply tower. {
-    intros ??????????. apply H; auto.
-    intros. apply H1; auto.
-  }
-  clear R. intros R **. destruct b.
-  - constructor.
-    repeat split; intros.
-    + now apply H0 in H2.
-    + apply H1 in H2. apply tau_div; auto. apply (b_chain R). apply H2.
-      apply simF_f_t; auto. now rewrite Hfreeze.
-    + esim.
-  - constructor. constructor.
-    intros ??.
-    apply H1 in H2 as ?. apply simF_equiv in H3. destruct H3.
-    eapply dtau_div; eauto. constructor. apply H3.
-Qed.
+
+(* Up-to principles *)
 
 Section SimUpTo.
 
-Context (*(div : SimOpt.div_opt) (lock : SimOpt.lock_opt)
-  (exp : SimOpt.exp_opt) (ub : SimOpt.ub_opt)*)
-  (R : Chain simF).
+Context (R : Chain simF).
 
 Definition upto_refl `{Reflexive _ Robs} b :
   Reflexive (`R b).
@@ -467,6 +478,31 @@ Proof.
     intro. apply H3. econstructor; eapply H2.
 Admitted.
 *)
+
+Theorem sim_tau_l (Hfreeze : freeze = SimOpt.freeze_div) :
+  forall b s t,
+  is_tau_state s ->
+  forall (Hstuck : extrans s),
+  (forall s', trans tau s s' -> `R b s' t) ->
+  `R b s t.
+Proof.
+  apply tower. {
+    intros ??????????. apply H; auto.
+    intros. apply H1; auto.
+  }
+  clear R. intros R **. destruct b.
+  - constructor.
+    repeat split; intros.
+    + now apply H0 in H2.
+    + apply H1 in H2. apply tau_div; auto. apply (b_chain R). apply H2.
+      apply simF_f_t; auto. now rewrite Hfreeze.
+    + esim.
+  - constructor. constructor.
+    intros ??.
+    apply H1 in H2 as ?. apply simF_equiv in H3. destruct H3.
+    eapply dtau_div; eauto. constructor. apply H3.
+Qed.
+
 Theorem upto_tau_r :
   forall s t t'
     (* FIXME with the right def, no need for Hstuck *)
@@ -563,25 +599,12 @@ Lemma sim_diverges : forall (Hfreeze : freeze = SimOpt.freeze_div) s t,
   diverges s ->
   diverges t.
 Proof.
-  intros. eapply divpres_impl; eauto. Fail eapply sim_divpres; eauto.
-Admitted.
-
-Lemma sim_tau_weak :
-  forall s s' t R,
-  simF R true s t ->
-  trans tau s s' ->
-  exists t', (trans tau)^* t t' /\ R true s' t'.
-Proof.
-  intros. inversion H; subst. apply H1 in H0 as []; auto.
-  - exists t'. split; auto. now rewrite <- str_ext.
-  - exists t. split; auto. now rewrite <- str_refl.
-  - exists t. split; auto. now rewrite <- str_refl.
-  - exists t'. split; auto. now rewrite <- str_itr'.
+  intros. eapply divpres_impl; eauto. apply sim_f_t; auto.
 Qed.
 
 Lemma divpres_trans_l : forall (R : Chain simF) s t u,
   `R false t u ->
-  divpres s t ->
+  sim false s t ->
   `R false s u.
 Proof.
   intros ?. apply tower. {
@@ -590,7 +613,7 @@ Proof.
   clear R. intros R **.
   apply simF_equiv in H0.
   revert s H1. induction H0. rename t into u. rename s into t. intros.
-  apply (gfp_fp divpresF) in H1. induction H1.
+  apply (gfp_fp simF) in H1. apply simF_equiv in H1. induction H1.
   apply simF_equiv. constructor. intros ??.
   apply H1 in H2 as ?. destruct H3.
   - apply H0 in TR. destruct TR.
@@ -606,6 +629,8 @@ Hint Constructors TauAnswer : optsim.
 Hint Resolve dtau_plus : optsim.
 Hint Resolve simF_false : optsim.
 Hint Resolve simF_true : optsim.
+
+(* Up-to principles with heterogeneous options *)
 
 Lemma divpres_nofreeze_r : forall lock delay (R : Chain (simF SimOpt.freeze_div lock delay)) s t u,
   `R false s t ->
@@ -686,14 +711,14 @@ Proof.
     + (* tau_exact *)
       apply H0 in TR as ?; auto. destruct H2; eauto with optsim.
       (* freeze_div *) subst. apply tau_div; eauto.
-      eapply divpres_trans_l with (t := t'). apply DIV. admit.
+      eapply divpres_trans_l with (t := t'). apply DIV. apply sim_f_t; auto. admit.
     + (* tau_freeze *) subst freeze.
       eapply tau_freeze; eauto. eapply H; eauto. apply (b_chain x). apply simF_equiv. apply H0.
     + (* tau_div *) subst freeze.
       eapply tau_div; eauto with optsim.
       eapply H; eauto. apply (b_chain x). apply simF_equiv. apply H0.
       apply simF_equiv in H0; auto. eapply simF_f_t in H0. 2: discriminate.
-      apply divpres_trans_l with (s := s'0) in H0; auto. admit.
+      apply divpres_trans_l with (s := s'0) in H0; auto. apply sim_f_t; auto. admit.
     + (* tau_delay *)
       discriminate.
   - destruct H0 as (_ & _ & ?), H1 as (_ & _ & ?); auto. intuition.

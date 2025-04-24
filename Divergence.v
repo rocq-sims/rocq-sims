@@ -176,15 +176,23 @@ Qed.
 Hint Resolve unfold_divpresF : optsim.
 
 #[export] Instance divpresF_eq R :
-  Proper (Eq St ==> Eq St ==> impl) R ->
   Proper (Eq St ==> Eq St ==> impl) (divpresF R).
 Proof.
   intro. cbn. intros.
-  revert y y0 H0 H1. induction H2. intros. constructor. intros ??.
-  rewrite <- H1 in H3.
-  apply H0 in H3 as [].
-  - rewrite H2 in TR. esim.
+  revert y y0 H H0. induction H1. intros. constructor. intros ??.
+  rewrite <- H0 in H2.
+  apply H in H2 as [].
+  - rewrite H1 in TR. esim.
   - right. now eapply DIV.
+Qed.
+
+#[export] Instance : forall (R : Chain divergesF),
+  Proper (St.(Eq) ==> impl) `R.
+Proof.
+  intro. apply tower. {
+    intros ????????. eapply H; eauto.
+  }
+  intros. typeclasses eauto.
 Qed.
 
 Definition divpres := gfp divpresF.
