@@ -23,6 +23,7 @@ Let Robs := lts.(Robs).
 Let ub_state := lts.(ub_state).
 Let label := @label Observable.
 
+  (* TODO try to just use TauAnswer with Rind as Rdiv *)
   Variant TauIndAnswer (R Rind : relation St) s' t : Prop :=
   | taui_exact t' (TR : trans tau t t') (SIM : R s' t')
   | taui_freeze (_ : freeze = SimOpt.freeze) (SIM : R s' t)
