@@ -10,75 +10,9 @@ From RelationAlgebra Require Import
      rewriting
      normalisation
      monoid.
+From OptSim Require Import Utils LTS Divergence.
 
 Import CoindNotations.
-
-Lemma itr_unfold_l `{laws} `{KA ≪ l} :
-  forall (n : ob X) (x : X n n), x^+ ≡ x + x⋅x^+.
-Proof.
-  intros. now rewrite itr_str_l, str_unfold_l, <- itr_str_l, dotxpls, dotx1 at 1.
-Qed.
-
-Lemma itr_unfold_r `{laws} `{KA ≪ l} :
-  forall (n : ob X) (x : X n n), x^+ ≡ x + x^+⋅x.
-Proof.
-  intros. now rewrite itr_str_r, kleene.str_unfold_r, <- itr_str_r, dotplsx, dot1x at 1.
-Qed.
-
-Lemma str_itr' `{laws} `{KA ≪ l} :
-  forall (n : ob X) (x : X n n), x^+ ≦ x^*.
-Proof.
-  intros. now rewrite str_itr, <- leq_cup_r.
-Qed.
-
-Lemma srel_str_ind_l {E : EqType} :
-  forall (P : E -> Prop) (i : srel E E),
-  Proper (E.(Eq) ==> iff) P ->
-  (forall s t : E, i s t -> P t -> P s) ->
-  forall s t : E, i^* s t -> P t -> P s.
-Proof.
-  intros.
-  eset (P' := {| hrel_of := fun s t => P t -> P s|} : srel E E).
-  epose proof (str_ind_l1 (X := srel_monoid_ops)). specialize (H3 E i P'). cbn in H3. eapply H3.
-  - intros. now rewrite H4.
-  - intros. red in H4. destruct H4. eauto.
-  - apply H1.
-  - apply H2.
-  Unshelve.
-  cbn. intros. now rewrite H3, H4.
-Qed.
-
-Lemma srel_str_ind_r {E : EqType} :
-  forall (P : E -> Prop) (i : srel E E),
-  Proper (E.(Eq) ==> iff) P ->
-  (forall s t : E, i s t -> P s -> P t) ->
-  forall s t : E, i^* s t -> P s -> P t.
-Proof.
-  intros.
-  eset (P' := {| hrel_of := fun s t => P s -> P t|} : srel E E).
-  epose proof (str_ind_r1 (X := srel_monoid_ops)). specialize (H3 E i P'). cbn in H3. eapply H3.
-  - intros. now rewrite <- H4.
-  - intros. red in H4. destruct H4. eapply H0; eauto.
-  - apply H1.
-  - apply H2.
-  Unshelve.
-  cbn. intros. now rewrite H3, H4.
-Qed.
-
-Lemma srel_str_ind_l' {E : EqType} :
-  forall (i : srel E E) (P : E -> E -> Prop),
-  Proper (E.(Eq) ==> E.(Eq) ==> iff) P ->
-  (forall s t, E.(Eq) s t -> P s t) ->
-  (forall s t u, i s t -> P t u -> P s u) ->
-  forall s t, i^* s t -> P s t.
-Proof.
-  intros.
-  eset (P' := {| hrel_of := fun s t => P s t|} : srel E E).
-  epose proof (str_ind_l1 (X := srel_monoid_ops)). specialize (H3 E i P'). cbn in H3. eapply H3.
-  - intros. now apply H0.
-  - intros. red in H4. destruct H4. eapply H1; eauto.
-  - apply H2.
-Qed.
 
 Module SimOpt.
 
@@ -95,50 +29,10 @@ End SimOpt.
   delay : SimOpt.delay_opt;
 }.*)
 
-Variant label {S : Type} := obs (s : S) | tau.
-
-Record LTS := {
-  Observable : Type;
-  St : EqType;
-  trans : @label Observable -> srel St St;
-  epsilon : srel St St;
-  Robs : Observable -> Observable -> Prop;
-  ub_state : St -> Prop;
-}.
-
-(*Section LockLTS.
-
-  Context (lts : LTS).
-  Variant LockObservable := | Event (e : lts.(Observable)) | NoEvent.
-  Program Definition LockSt := {| type_of := (bool * lts.(St))%type |}.
-  Variant locktrans : @label LockObservable -> LockSt -> LockSt -> Prop :=
-  | locktrans_ev b o s t : lts.(trans) (obs o) s t -> locktrans (obs (Event o)) (b, s) (true, t)
-  | locktrans_noev s : (forall l t, lts.(trans) l s t -> False) -> locktrans (obs NoEvent) (true, s) (true, s)
-  .
-  Definition lockepsilon : LockSt -> LockSt -> Prop :=
-    fun '(b, s) '(b', s') =>
-    lts.(epsilon) s s' /\ (
-      (b = false /\ b' = false) \/
-      (b = true /\ b' = false) \/
-      (b = true /\ b' = true /\ forall l s'', lts.(trans) l s s'' -> False)
-    ).
-  Definition LockRobs : LockObservable -> LockObservable -> Prop. Admitted.
-  Definition lock_ub_state : LockSt -> Prop. Admitted.
-
-  Definition lock := {|
-    Observable := LockObservable;
-    St := LockSt;
-    trans := locktrans;
-    epsilon := lockepsilon;
-    Robs := LockRobs;
-    ub_state := lock_ub_state
-  |}.
-
-End LockLTS.*)
 
 Section WithLTS.
 
-Context (lts : LTS).
+Context {lts : LTS}.
 Let Observable := lts.(Observable).
 Let St := lts.(St).
 Let trans := lts.(trans).
@@ -147,128 +41,9 @@ Let Robs := lts.(Robs).
 Let ub_state := lts.(ub_state).
 Let label := @label Observable.
 
-#[global] Instance : Proper (weq ==> eq ==> eq ==> iff) (hrel_of (n := St) (m := St)).
-Proof.
-  cbn. intros. subst. apply H.
-Qed.
-
-#[global] Instance : Proper (leq ==> eq ==> eq ==> impl) (hrel_of (n := St) (m := St)).
-Proof.
-  cbn. intros. subst. now apply H.
-Qed.
-
-Definition is_obs (l : label) := if l then true else false.
-Definition is_tau (l : label) := if l then false else true.
-
-Definition is_tau_state st :=
-  forall l st', trans l st st' -> is_tau l = true.
-
-Definition is_obs_state st :=
-  forall l st', trans l st st' -> is_obs l = true.
-
-Create HintDb optsim.
-#[local] Ltac esim := eauto 10 with optsim exfalso.
-
-Program Definition divergesF : mon (St -> Prop) :=
-{| body R st :=
-  exists st', trans tau st st' /\ R st'
-|}.
-Next Obligation.
-  eauto.
-Qed.
-
-Definition diverges := gfp divergesF.
-
-#[export] Instance : Proper (St.(Eq) ==> flip impl) diverges.
-Proof.
-Admitted.
-
-Variant extrans (st : St) : Prop :=
-trans_intro l st' : trans l st st' -> extrans st.
-Hint Constructors extrans : optsim.
-
-#[export] Instance : Proper (St.(Eq) ==> flip impl) extrans.
-Proof.
-  cbn. intros ??? []. rewrite <- H in H0. eauto with optsim.
-Qed.
-
-Definition is_stuck (st : St) : Prop :=
-  ~ extrans st.
-
-#[export] Instance : Proper (St.(Eq) ==> flip impl) is_stuck.
-Proof.
-  cbn. unfold is_stuck. intros. now setoid_rewrite H.
-Qed.
-
 Section SimDef.
 
 Context (freeze : SimOpt.freeze_opt) (lock : SimOpt.lock_opt) (delay : SimOpt.delay_opt).
-
-Variant DTauAnswer (R Rind : relation St) s' t : Prop :=
-| dtau_match t' (TR : trans tau t t') (DIV : R s' t')
-| dtau_div (DIV : Rind s' t)
-.
-Hint Constructors DTauAnswer : optsim.
-
-#[export] Instance DTauAnswer_eq R Rind :
-  Proper (Eq St ==> Eq St ==> impl) R ->
-  Proper (Eq St ==> Eq St ==> impl) Rind ->
-  Proper (Eq St ==> Eq St ==> impl) (DTauAnswer R Rind).
-Proof.
-  intros. cbn. intros. destruct H3.
-  - rewrite H2 in TR. rewrite H1 in DIV. esim.
-  - rewrite H1, H2 in DIV. esim.
-Qed.
-
-Definition divpresIndF R Rind s t :=
-  forall s', trans tau s s' -> DTauAnswer R Rind s' t.
-Hint Unfold divpresIndF : optsim.
-
-Section NoElim.
-#[local] Unset Elimination Schemes.
-Inductive divpresInd R s t : Prop :=
-| divpresI : divpresIndF R (divpresInd R) s t -> divpresInd R s t.
-End NoElim.
-Hint Constructors divpresInd : optsim.
-
-Definition divpresInd_ind :
-  forall R P : St -> St -> Prop,
-       (forall s t : St,
-         (divpresIndF R (fun s t => divpresInd R s t /\ P s t) s t) -> 
-        P s t) -> forall t t0 : St, divpresInd R t t0 -> P t t0.
-Proof.
-  intros until 1. fix F 3. intros. apply H. destruct H0.
-  red. intros. apply H0 in H1 as [].
-  - eleft; eauto.
-  - eright; eauto.
-Qed.
-
-Program Definition divpresF : mon (St -> St -> Prop) :=
-{| body R s t := divpresInd R s t |}.
-Next Obligation.
-  induction H0. constructor. intros ??.
-  apply H0 in H1 as []. eleft; eauto. eright; eauto. apply DIV.
-Qed.
-
-Lemma unfold_divpresF : forall R s t,
- divpresInd R s t ->
- divpresF R s t.
-Proof.
-  auto.
-Qed.
-Hint Resolve unfold_divpresF : optsim.
-
-#[export] Instance divpresF_eq R :
-  Proper (Eq St ==> Eq St ==> impl) R ->
-  Proper (Eq St ==> Eq St ==> impl) (divpresF R).
-Proof.
-  intro. cbn. intros.
-  revert y y0 H0 H1. induction H2. intros. constructor. intros ??.
-  rewrite <- H1 in H3.
-  apply H0 in H3 as [].
-  - rewrite H2 in TR. esim.
-  - right. now eapply DIV.
-Qed.
 
 Variant ObsAnswer (R : relation St) s' t o : Prop :=
 | ans_obs o' t' (TR : trans (obs o') t t') (SIM : R s' t') (OBS : Robs o o') : ObsAnswer R s' t o
@@ -336,48 +111,6 @@ Definition RL l l' :=
   | _, _ => False
   end.
 
-Section SimInd.
-
-  Variant TauIndAnswer (R Rind : relation St) s' t : Prop :=
-  | taui_exact t' (TR : trans tau t t') (SIM : R s' t')
-  | taui_freeze (_ : freeze = SimOpt.freeze) (SIM : R s' t)
-  | taui_div (_ : freeze = SimOpt.freeze_div) (SIM : Rind s' t)
-  | taui_delay t' (_ : delay = SimOpt.delay) (TR : (trans tau)^+ t t') (SIM : R s' t')
-  .
-  Hint Constructors TauIndAnswer : optsim.
-
-  Definition simIndF R Rind s t :=
-    (forall o s', trans (obs o) s s' ->
-      ObsAnswer R s' t o
-    ) /\
-    (forall s', trans tau s s' ->
-      TauIndAnswer R Rind s' t
-    ) /\
-    (lock = SimOpt.nolock \/ (is_stuck s -> is_stuck t)).
-
-  Section NoElim.
-  #[local] Unset Elimination Schemes.
-  Inductive simInd R s t : Prop :=
-  | simI :
-    simIndF R (simInd R) s t -> simInd R s t.
-  End NoElim.
-
-  Definition simInd_ind :
-    forall R P : St -> St -> Prop,
-         (forall s t : St,
-           (simIndF R (fun s t => simInd R s t /\ P s t) s t) -> 
-          P s t) -> forall t t0 : St, simInd R t t0 -> P t t0.
-  Proof.
-    intros until 1. fix F 3. intros. apply H. destruct H0. repeat split; intros.
-    - apply H0 in H1 as [].
-      eleft; eauto.
-      eright; eauto.
-    - apply H0 in H1 as []; esim.
-    - apply H0.
-  Qed.
-
-End SimInd.
-
 (*Variant SimAnswer (R Rind : relation St) s' t l : Prop :=
 | ans_exact l' t' (TR : trans l' t t') (SIM : R s' t') (LBL : RL l l')
 | ans_freeze (_ : freeze = SimOpt.freeze) (SIM : R s' t) (LBL : l = tau)
@@ -436,16 +169,6 @@ Proof.
       try discriminate; eauto with optsim exfalso.
     + eright; eauto. now rewrite <- str_itr'.
     + econstructor 4; eauto. now rewrite itr_unfold_r, <- leq_cup_r.
-Qed.
-
-Lemma simInd_mon : forall R R', R <= R' -> simInd R <= simInd R'.
-Proof.
-  cbn. intros. induction H0.
-  repeat split; intros.
-  - apply H0 in H1 as []; esim.
-  - apply H0 in H1 as []; esim.
-    destruct SIM. esim.
-  - apply H0.
 Qed.
 *)
 
@@ -604,10 +327,6 @@ Proof.
   apply H0. auto.
 Qed.
 
-Inductive nodiv s : Prop :=
-| nodiv_tau : (forall s', trans tau s s' -> nodiv s') -> nodiv s
-.
-
 Lemma chain_nodiv : forall (R : Chain simF) s t,
   nodiv s ->
   simF `R false s t.
@@ -620,41 +339,6 @@ Proof.
   induction H0.
   constructor. intros ??.
   apply dtau_div. apply H1. apply H2.
-Qed.
-
-Lemma diverges_nodiv : forall s,
-  nodiv s ->
-  diverges s ->
-  False.
-Proof.
-  intros. induction H.
-  apply (gfp_fp divergesF) in H0 as (? & ? & ?).
-  apply H1 in H0 as [].
-  apply H2.
-Qed.
-
-Lemma diverges_impl_nodiv : forall s t,
-  nodiv s \/ diverges t ->
-  (diverges s -> diverges t).
-Proof.
-  intros. destruct H.
-  - now apply diverges_nodiv in H; auto.
-  - apply H.
-Qed.
-
-Definition divpres := gfp divpresF.
-
-Axiom diverges_lem : forall s, diverges s \/ nodiv s.
-
-Lemma divpres_impl : forall s t,
-  divpres s t ->
-  diverges s -> diverges t.
-Proof.
-  red. coinduction R CH. intros.
-  apply (gfp_fp divpresF) in H. induction H. apply (gfp_fp divergesF) in H0 as (? & ? & ?).
-  apply H in H0 as [].
-  - exists t'. eauto.
-  - now apply DIV.
 Qed.
 
 Lemma trans_add_delay : forall l,
@@ -1004,7 +688,7 @@ Theorem sim_inv_taustar_l :
 Proof.
   intros. revert H0.
   eapply srel_str_ind_l' with (i := trans tau) (P := fun s s' => sim true s t -> sim true s' t); auto.
-  - cbn. intros. Set  Typeclasses Depth 10. now rewrite H0, H1.
+  - cbn. intros. now rewrite H0, H1.
   - intros. rewrite <- H0. apply H1.
   - intros. apply H1. eapply sim_inv_tau_l; eauto.
 Qed.
@@ -1064,15 +748,6 @@ Proof.
   - exists t'. split; auto. now rewrite <- str_itr'.
 Qed.
 
-Lemma diverges_divpres :
-  forall s t, diverges t -> divpres s t.
-Proof.
-  red. coinduction R CH.
-  intros. constructor. intros ??.
-  apply (gfp_fp divergesF) in H as (? & ? & ?).
-  eleft; eauto.
-Qed.
-
 Lemma divpres_trans_l : forall (R : Chain simF) s t u,
   `R false t u ->
   divpres s t ->
@@ -1097,11 +772,7 @@ End SimDef.
 
 Hint Constructors ObsAnswer : optsim.
 Hint Constructors TauAnswer : optsim.
-Hint Constructors DTauAnswer : optsim.
 Hint Resolve dtau_plus : optsim.
-Hint Unfold divpresIndF : optsim.
-Hint Constructors divpresInd : optsim.
-Hint Resolve unfold_divpresF : optsim.
 Hint Resolve simF_false : optsim.
 Hint Resolve simF_true : optsim.
 
@@ -1250,3 +921,9 @@ Abort.
 *)
 
 End WithLTS.
+
+Hint Constructors ObsAnswer : optsim.
+Hint Constructors TauAnswer : optsim.
+Hint Resolve dtau_plus : optsim.
+Hint Resolve simF_false : optsim.
+Hint Resolve simF_true : optsim.
