@@ -1,5 +1,14 @@
 From Coq Require Import Morphisms.
-From RelationAlgebra Require Import srel lattice rel.
+From RelationAlgebra Require Import
+     kat
+     kat_tac
+     prop
+     rel
+     srel
+     comparisons
+     rewriting
+     normalisation
+     monoid.
 
 Variant label {S : Type} := obs (s : S) | tau.
 
@@ -86,6 +95,12 @@ Definition is_stuck (st : lts.(St)) : Prop :=
 #[export] Instance : Proper (lts.(St).(Eq) ==> flip impl) is_stuck.
 Proof.
   cbn. unfold is_stuck. intros. now setoid_rewrite H.
+Qed.
+
+Lemma trans_add_delay : forall (l : @label lts.(Observable)),
+  trans l ≦ (trans tau)^* ⋅ trans l.
+Proof.
+  intros. esplit; eauto. now rewrite <- str_refl.
 Qed.
 
 End LTS.

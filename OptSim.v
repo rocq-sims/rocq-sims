@@ -300,12 +300,6 @@ Proof.
   apply dtau_div. apply H1. apply H2.
 Qed.
 
-Lemma trans_add_delay : forall l,
-  trans l ≦ (trans tau)^* ⋅ trans l.
-Proof.
-  intros. esplit; eauto. now rewrite <- str_refl.
-Qed.
-
 Lemma divpresF_tau_r : forall (R : Chain simF) s t t',
   `R false s t' ->
   trans tau t t' ->
@@ -402,22 +396,6 @@ Proof.
   - firstorder.
   - destruct b; constructor; esim. repeat split; esim.
 Qed.
-
-(*Lemma diverges_taustar :
-  forall s s', diverges s' -> taustar s s' -> diverges s.
-Proof.
-  intros. induction H0; auto.
-  apply (gfp_fp divergesF). cbn.
-  exists s'. split; auto. now apply IHtaustar.
-Qed.
-
-Lemma diverges_obs_state :
-  forall st, is_obs_state st -> diverges st -> False.
-Proof.
-  intros.
-  apply (gfp_fp divergesF) in H0 as (? & ? & _).
-  now apply H in H0.
-Qed.*)
 
 (* adds a tau on the right *)
 (*Theorem upto_tau_r' :
@@ -567,13 +545,6 @@ Proof.
   intros. eapply inv_tau_l; eauto.
 Qed.
 
-#[export] Instance simF_eq' R :
-  Proper (eq ==> Eq St ==> Eq St ==> impl) R ->
-  Proper (eq ==> Eq St ==> Eq St ==> iff) (simF R).
-Proof.
-  split; subst; eapply simF_eq; eauto; now symmetry.
-Qed.
-
 Theorem sim_inv_taustar_l :
   forall (Hdelay : delay = SimOpt.delay) s s' t,
   (trans tau)^* s s' ->
@@ -586,40 +557,6 @@ Proof.
   - intros. rewrite <- H0. apply H1.
   - intros. apply H1. eapply sim_inv_tau_l; eauto.
 Qed.
-
-Lemma divergesF_taustar : forall (R : Chain divergesF) s s',
-  (trans tau)^* s s' ->
-  `R s' ->
-  `R s.
-Proof.
-  intro. apply tower. {
-    intros ????????. eapply H; eauto.
-  }
-  intros. rewrite str_itr in H0. destruct H0.
-  - admit.
-  - rewrite itr_str_l in H0. destruct H0.
-    exists x0. split; auto. eapply H. apply H2.
-    now apply (b_chain x).
-Admitted.
-
-Lemma divergesF_tauplus : forall (R : Chain divergesF) s s',
-  (trans tau)^+ s s' ->
-  `R s' ->
-  divergesF `R s.
-Proof.
-  intros. rewrite itr_str_l in H. destruct H.
-  exists x. split; auto. eapply divergesF_taustar; eauto.
-Qed.
-
-Lemma diverges_tauplus : forall s s',
-  (trans tau)^+ s s' ->
-  diverges s' ->
-  diverges s.
-Proof.
-  unfold diverges. apply gfp_prop.
-  intros. apply (b_chain x). eapply divergesF_tauplus; eauto.
-Qed.
-
 
 Lemma sim_diverges : forall (Hfreeze : freeze = SimOpt.freeze_div) s t,
   sim true s t ->

@@ -35,12 +35,90 @@ Qed.
 
 Definition diverges := gfp divergesF.
 
+#[export] Instance :
+  forall R,
+  Proper (St.(Eq) ==> impl) (divergesF R).
+Proof.
+  intros. cbn. intros. destruct H0 as (? & ? & ?).
+  setoid_rewrite <- H. eauto.
+Qed.
+
 #[export] Instance : Proper (St.(Eq) ==> impl) diverges.
 Proof.
-  cbn. red. coinduction R CH. intros.
-  apply (gfp_fp divergesF) in H0. destruct H0 as (? & ? & ?).
-  rewrite H in H0. exists x0. eauto.
+  cbn. red. intros. apply (gfp_fp divergesF).
+  apply (gfp_fp divergesF) in H0. now rewrite H in H0.
 Qed.
+
+Lemma divergesF_taustar : forall (R : Chain divergesF) s s',
+  (trans tau)^* s s' ->
+  `R s' ->
+  `R s.
+Proof.
+  intro. apply tower. {
+    intros ????????. eapply H; eauto.
+  }
+  intros. rewrite str_itr in H0. destruct H0.
+  - cbn in H0. now rewrite H0.
+  - rewrite itr_str_l in H0. destruct H0.
+    exists x0. split; auto. eapply H. apply H2.
+    now apply (b_chain x).
+Qed.
+
+Lemma divergesF_tauplus : forall (R : Chain divergesF) s s',
+  (trans tau)^+ s s' ->
+  `R s' ->
+  divergesF `R s.
+Proof.
+  intros. rewrite itr_str_l in H. destruct H.
+  exists x. split; auto. eapply divergesF_taustar; eauto.
+Qed.
+
+Lemma diverges_tauplus : forall s s',
+  (trans tau)^+ s s' ->
+  diverges s' ->
+  diverges s.
+Proof.
+  unfold diverges. apply gfp_prop.
+  intros. apply (b_chain x). eapply divergesF_tauplus; eauto.
+Qed.
+
+Lemma diverges_obs_state :
+  forall st, is_obs_state st -> diverges st -> False.
+Proof.
+  intros.
+  apply (gfp_fp divergesF) in H0 as (? & ? & _).
+  now apply H in H0.
+Qed.
+
+
+(* Non-divergence *)
+
+Inductive nodiv s : Prop :=
+| nodiv_tau : (forall s', trans tau s s' -> nodiv s') -> nodiv s
+.
+
+Lemma diverges_nodiv : forall s,
+  nodiv s ->
+  diverges s ->
+  False.
+Proof.
+  intros. induction H.
+  apply (gfp_fp divergesF) in H0 as (? & ? & ?).
+  apply H1 in H0 as [].
+  apply H2.
+Qed.
+
+Lemma diverges_impl_nodiv : forall (s t : St),
+  nodiv s \/ diverges t ->
+  (diverges s -> diverges t).
+Proof.
+  intros. destruct H.
+  - now apply diverges_nodiv in H; auto.
+  - apply H.
+Qed.
+
+
+(* Divergence preservation *)
 
 Variant DTauAnswer (R Rind : relation St) s' t : Prop :=
 | dtau_match t' (TR : trans tau t t') (DIV : R s' t')
@@ -109,32 +187,9 @@ Proof.
   - right. now eapply DIV.
 Qed.
 
-Inductive nodiv s : Prop :=
-| nodiv_tau : (forall s', trans tau s s' -> nodiv s') -> nodiv s
-.
-
-Lemma diverges_nodiv : forall s,
-  nodiv s ->
-  diverges s ->
-  False.
-Proof.
-  intros. induction H.
-  apply (gfp_fp divergesF) in H0 as (? & ? & ?).
-  apply H1 in H0 as [].
-  apply H2.
-Qed.
-
-Lemma diverges_impl_nodiv : forall (s t : St),
-  nodiv s \/ diverges t ->
-  (diverges s -> diverges t).
-Proof.
-  intros. destruct H.
-  - now apply diverges_nodiv in H; auto.
-  - apply H.
-Qed.
-
 Definition divpres := gfp divpresF.
 
+(* Axiom used in DivSim *)
 Axiom diverges_lem : forall s, diverges s \/ nodiv s.
 
 Lemma divpres_impl : forall s t,
