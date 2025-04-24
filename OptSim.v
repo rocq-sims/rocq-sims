@@ -232,6 +232,12 @@ Proof.
   intros. split; apply Chain_simF_eq; auto; now symmetry.
 Qed.
 
+#[export] Instance Chain_simF_eq'' : forall (R : Chain simF) b,
+  Proper (Eq St ==> Eq St ==> impl) (`R b).
+Proof.
+  cbn. intros. eapply Chain_simF_eq; eauto.
+Qed.
+
 Definition sim := gfp simF.
 
 Lemma simF_false : forall R s t,
@@ -589,7 +595,7 @@ Theorem sim_inv_taustar_l :
 Proof.
   intros. revert H0.
   eapply srel_str_ind_l' with (i := trans tau) (P := fun s s' => sim true s t -> sim true s' t); auto.
-  - cbn. intros. now rewrite H0, H1.
+  - cbn. intros ??????. now rewrite H0, H1.
   - intros. rewrite <- H0. apply H1.
   - intros. apply H1. eapply sim_inv_tau_l; eauto.
 Qed.
@@ -620,6 +626,117 @@ Proof.
     + rename t'0 into u'. eapply dtau_match; eauto.
     + apply dtau_div. apply DIV0 in DIV. apply simF_equiv. apply DIV; auto.
   - apply dtau_div. apply simF_equiv. apply DIV; auto.
+Qed.
+
+
+(* Top-level transitivity *)
+
+#[export] Instance divpres_trans : Transitive (sim false).
+Proof.
+  cbn. red. coinduction R CH. intros. eapply divpres_trans_l. 2: apply H.
+  apply (gfp_bchain R). apply H0.
+Qed.
+
+Lemma sim_game_delay_tau : forall s s' t,
+  (trans tau)^* s s' ->
+  sim true s t ->
+  exists t', (trans tau)^* t t' /\ sim true s' t'.
+Proof.
+  intros * TR SIM.
+  revert t SIM. eapply srel_str_ind_l' with (P := fun s s' =>
+    forall t : St, sim true s t -> exists t' : St, (trans tau)^* t t' /\ sim true s' t'). 4: apply TR.
+  all: clear s s' TR.
+  { intros ?????????. setoid_rewrite <- H0. apply H1. now rewrite H. }
+  - intros * EQ ? SIM. rewrite EQ in SIM.
+    setoid_rewrite <- str_refl. cbn. eauto.
+  - intros * TR IH ? SIM.
+    eapply sim_tau_weak in TR. 2: { apply (gfp_fp simF) in SIM. apply SIM. }
+    destruct TR as (? & ? & ?). apply IH in H0 as (? & ? & ?).
+    exists x0. split; auto. rewrite <- str_trans. esplit; eassumption.
+Qed.
+
+Lemma TauAnswer_tau_l (Hdelay : delay = SimOpt.delay) : forall s t t',
+  trans tau t t' ->
+  TauAnswer (sim true) (sim false) s t' ->
+  TauAnswer (sim true) (sim false) s t.
+Proof.
+  intros * TR []; esim.
+  - eapply tau_delay; eauto. rewrite <- itr_cons, <- itr_ext.
+    esplit; eauto.
+  - eapply tau_delay; eauto. rewrite <- itr_cons.
+    esplit; eauto.
+Qed.
+
+Lemma TauAnswer_taustar_l (Hdelay : delay = SimOpt.delay) : forall s t t',
+  (trans tau)^* t t' ->
+  TauAnswer (sim true) (sim false) s t' ->
+  TauAnswer (sim true) (sim false) s t.
+Proof.
+  intros * TR ANS. revert s ANS.
+  eapply srel_str_ind_l' with (P := fun t t' =>
+    forall s : St, TauAnswer (sim true) (sim false) s t' -> TauAnswer (sim true) (sim false) s t).
+  4: apply TR. clear t t' TR.
+  { intros ?????????. setoid_rewrite <- H. apply H1. now rewrite H0. }
+  - intros. now rewrite H.
+  - intros. eapply TauAnswer_tau_l; eauto.
+Qed.
+
+Lemma sim_game_delay_tauplus (Hdelay : delay = SimOpt.delay) : forall s s' t,
+  (trans tau)^+ s s' ->
+  sim true s t ->
+  TauAnswer (sim true) (sim false) s' t.
+Proof.
+  intros * TR SIM.
+  revert t SIM.
+  eapply srel_itr_ind_l' with (P := fun s s' =>
+    forall t : St, sim true s t -> TauAnswer (sim true) (sim false) s' t). 4: apply TR.
+  all: clear s s' TR.
+  { intros ?????????. setoid_rewrite <- H0. apply H1. now rewrite H. }
+  - intros * TR ? SIM.
+    apply sim_fp in SIM. now apply SIM in TR.
+  - intros * TR IH ? SIM.
+    apply sim_fp in SIM. apply SIM in TR as []; esim.
+    + (* tau_exact *)
+      apply IH in SIM0. eapply TauAnswer_tau_l; eauto.
+    + (* tau_delay *)
+      apply IH in SIM0.
+      rewrite str_itr' in TR.
+      eapply TauAnswer_taustar_l; eauto.
+Qed.
+
+Lemma sim_game_delay_obs : forall s s' t o,
+((trans tau)^*⋅trans (obs o)) s s' ->
+sim true s t ->
+exists t' o', ((trans tau)^*⋅trans (obs o')) t t' /\ sim true s' t' /\ Robs o o'.
+Proof.
+  intros. destruct H as [s0 TR0 TR].
+  eapply sim_game_delay_tau in TR0; eauto.
+  destruct TR0 as (t' & TR0 & SIM).
+  apply sim_fp in SIM. apply SIM in TR as [].
+  - exists t'0, o'. split; auto. esplit; eauto.
+  - exists t'0, o'. split; auto. rewrite <- str_trans, <- dotA. esplit; eauto.
+Qed.
+
+#[export] Instance sim_trans (OBS : Transitive Robs) : Transitive (sim true).
+Proof.
+  cbn. red. coinduction R CH. intros. apply simF_equiv.
+  repeat split; intros.
+  - apply sim_fp in H. apply H in H1 as [].
+    + apply sim_fp in H0. apply H0 in TR as []; esim.
+    + eapply sim_game_delay_obs in TR as (t'' & o'' & TR & SIM' & OBS'); esim.
+  - apply sim_fp in H. apply H in H1 as []; esim.
+    + (* tau_exact *) apply sim_fp in H0. apply H0 in TR as []; esim.
+      apply tau_div; eauto.
+      apply (gfp_chain R). etransitivity; eauto. now apply sim_f_t.
+    + (* tau_div *) apply tau_div; eauto.
+      apply (gfp_chain R). etransitivity; eauto. now apply sim_f_t.
+    + (* tau_delay *) apply sim_fp in H0.
+      eapply sim_game_delay_tauplus in TR; eauto. 2: { apply sim_fp; eauto. }
+      destruct TR; esim.
+      apply tau_div; eauto.
+      apply (gfp_chain R). etransitivity; eauto. now apply sim_f_t.
+  - apply sim_fp in H. destruct H as (_ & _ & []); auto.
+    apply sim_fp in H0. destruct H0 as (_ & _ & []); auto.
 Qed.
 
 End SimDef.

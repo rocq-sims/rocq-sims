@@ -104,3 +104,5 @@ Proof.
 Qed.
 
 End LTS.
+
+Hint Constructors extrans : optsim.

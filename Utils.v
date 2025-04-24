@@ -34,7 +34,7 @@ Qed.
 
 Lemma srel_str_ind_l {E : EqType} :
   forall (P : E -> Prop) (i : srel E E),
-  Proper (E.(Eq) ==> iff) P ->
+  Proper (E.(Eq) ==> impl) P ->
   (forall s t : E, i s t -> P t -> P s) ->
   forall s t : E, i^* s t -> P t -> P s.
 Proof.
@@ -46,12 +46,13 @@ Proof.
   - apply H1.
   - apply H2.
   Unshelve.
+  apply proper_sym_impl_iff in H. 2: typeclasses eauto.
   cbn. intros. now rewrite H3, H4.
 Qed.
 
 Lemma srel_str_ind_r {E : EqType} :
   forall (P : E -> Prop) (i : srel E E),
-  Proper (E.(Eq) ==> iff) P ->
+  Proper (E.(Eq) ==> impl) P ->
   (forall s t : E, i s t -> P s -> P t) ->
   forall s t : E, i^* s t -> P s -> P t.
 Proof.
@@ -63,12 +64,13 @@ Proof.
   - apply H1.
   - apply H2.
   Unshelve.
+  apply proper_sym_impl_iff in H. 2: typeclasses eauto.
   cbn. intros. now rewrite H3, H4.
 Qed.
 
 Lemma srel_str_ind_l' {E : EqType} :
   forall (i : srel E E) (P : E -> E -> Prop),
-  Proper (E.(Eq) ==> E.(Eq) ==> iff) P ->
+  Proper (E.(Eq) ==> E.(Eq) ==> impl) P ->
   (forall s t, E.(Eq) s t -> P s t) ->
   (forall s t u, i s t -> P t u -> P s u) ->
   forall s t, i^* s t -> P s t.
@@ -79,4 +81,21 @@ Proof.
   - intros. now apply H0.
   - intros. red in H4. destruct H4. eapply H1; eauto.
   - apply H2.
+  Unshelve. apply proper_sym_impl_iff_2; typeclasses eauto.
+Qed.
+
+Lemma srel_itr_ind_l' {E : EqType} :
+  forall (i : srel E E) (P : E -> E -> Prop),
+  Proper (E.(Eq) ==> E.(Eq) ==> impl) P ->
+  (forall s t, i s t -> P s t) ->
+  (forall s t u, i s t -> P t u -> P s u) ->
+  forall s t, i^+ s t -> P s t.
+Proof.
+  intros.
+  eset (P' := {| hrel_of := fun s t => P s t|} : srel E E).
+  epose proof (itr_ind_l1 (X := srel_monoid_ops)). specialize (H3 E i P'). cbn in H3. eapply H3.
+  - intros. now apply H0.
+  - intros. red in H4. destruct H4. eapply H1; eauto.
+  - apply H2.
+  Unshelve. apply proper_sym_impl_iff_2; typeclasses eauto.
 Qed.
