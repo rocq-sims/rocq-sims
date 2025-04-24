@@ -1,4 +1,4 @@
-From Coq Require Import Init Program.Equality.
+From Coq Require Import Program.Equality.
 From Coinduction Require Import all.
 From RelationAlgebra Require Import
      kat
@@ -222,12 +222,14 @@ Qed.
 
 Definition divpresIndF R Rind s t :=
   forall s', trans tau s s' -> DTauAnswer R Rind s' t.
+Hint Unfold divpresIndF : optsim.
 
 Section NoElim.
 #[local] Unset Elimination Schemes.
 Inductive divpresInd R s t : Prop :=
 | divpresI : divpresIndF R (divpresInd R) s t -> divpresInd R s t.
 End NoElim.
+Hint Constructors divpresInd : optsim.
 
 Definition divpresInd_ind :
   forall R P : St -> St -> Prop,
@@ -247,6 +249,14 @@ Next Obligation.
   induction H0. constructor. intros ??.
   apply H0 in H1 as []. eleft; eauto. eright; eauto. apply DIV.
 Qed.
+
+Lemma unfold_divpresF : forall R s t,
+ divpresInd R s t ->
+ divpresF R s t.
+Proof.
+  auto.
+Qed.
+Hint Resolve unfold_divpresF : optsim.
 
 #[export] Instance divpresF_eq R :
   Proper (Eq St ==> Eq St ==> impl) R ->
@@ -807,15 +817,13 @@ Context (*(div : SimOpt.div_opt) (lock : SimOpt.lock_opt)
   (exp : SimOpt.exp_opt) (ub : SimOpt.ub_opt)*)
   (R : Chain simF).
 
-(*Definition upto_refl `{Reflexive _ Robs} :
-  Reflexive `R.
+Definition upto_refl `{Reflexive _ Robs} b :
+  Reflexive (`R b).
 Proof.
   apply tower.
   - firstorder.
-  - repeat split; intros; auto.
-    + eauto 8 with optsim.
-    + eauto with optsim.
-Qed.*)
+  - destruct b; constructor; esim. repeat split; esim.
+Qed.
 
 (*Lemma diverges_taustar :
   forall s s', diverges s' -> taustar s s' -> diverges s.
@@ -1091,6 +1099,9 @@ Hint Constructors ObsAnswer : optsim.
 Hint Constructors TauAnswer : optsim.
 Hint Constructors DTauAnswer : optsim.
 Hint Resolve dtau_plus : optsim.
+Hint Unfold divpresIndF : optsim.
+Hint Constructors divpresInd : optsim.
+Hint Resolve unfold_divpresF : optsim.
 Hint Resolve simF_false : optsim.
 Hint Resolve simF_true : optsim.
 
