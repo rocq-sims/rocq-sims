@@ -16,5 +16,6 @@
   (coq-ext-lib (>= 0.11.3))
   (coq-coinduction (= 1.9))
   (coq-relation-algebra (>= 1.7))
-  (coq-itree (>= 5.0)))
+  (coq-itree (>= 5.0))
+  (coq-ctree (>= 0.1)))
 )
