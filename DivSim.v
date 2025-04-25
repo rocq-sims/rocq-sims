@@ -25,6 +25,7 @@ Notation Robs := lts.(Robs).
 Notation ub_state := lts.(ub_state).
 Notation label := (@label Observable).
 
+(*
 Program Definition divsimF lock : mon (St -> St -> Prop) :=
 {|
   body := fun R s t => (forall o s', ((trans tau)^* ⋅ trans (obs o)) s s' ->
@@ -66,8 +67,9 @@ Proof.
 Qed.
 
 Definition divsim lock := gfp (divsimF lock).
+*)
 
-Program Definition divsimF' lock : mon (St -> St -> Prop) :=
+Program Definition divsimF lock : mon (St -> St -> Prop) :=
 {|
   body := fun R s t => (forall o s', trans (obs o) s s' ->
     exists o' t',
@@ -87,9 +89,9 @@ Next Obligation.
 Qed.
 
 #[export] Instance : forall lock R,
-  Proper (St.(Eq) ==> St.(Eq) ==> impl) (divsimF' lock R).
+  Proper (St.(Eq) ==> St.(Eq) ==> impl) (divsimF lock R).
 Proof.
-  cbn -[divsimF']. intros. repeat split; intros.
+  cbn -[divsimF]. intros. repeat split; intros.
   - rewrite <- H in H2. apply H1 in H2 as (? & ? & ? & ? & ?).
     exists x1, x2. repeat split; auto. now rewrite <- H0.
   - rewrite <- H in H2. apply H1 in H2 as (? & ? & ?).
@@ -98,7 +100,7 @@ Proof.
   - rewrite <- H, <- H0. apply H1.
 Qed.
 
-#[export] Instance : forall lock (R : Chain (divsimF' lock)),
+#[export] Instance : forall lock (R : Chain (divsimF lock)),
   Proper (St.(Eq) ==> St.(Eq) ==> impl) `R.
 Proof.
   intro. apply tower. {
@@ -107,7 +109,7 @@ Proof.
   intros. typeclasses eauto.
 Qed.
 
-Definition divsim' lock := gfp (divsimF' lock).
+Definition divsim lock := gfp (divsimF lock).
 
 Section WithOpts.
 
@@ -126,22 +128,20 @@ Proof.
 Qed.
 
 (* ok *)
-Lemma divsim_equiv
+Lemma divsim'_equiv
   (Hfreeze : freeze = SimOpt.freeze_div)
   (Hdelay : delay = SimOpt.delay) :
   forall b s t, divsim lock s t ->
   sim freeze lock delay b s t.
 Proof.
   red. coinduction R CH. intros. destruct b.
-  2: now apply (gfp_bchain R), divsim_divpres.
+  2: { now apply (gfp_bchain R), divsim_divpres. }
   constructor.
   repeat split; intros.
   - apply (gfp_fp (divsimF _)) in H. destruct H as (? & ? & _).
-    apply trans_add_delay in H0.
     apply H in H0 as (? & ? & ? & ? & ?).
     eapply ans_delay_obs; eauto.
   - apply (gfp_fp (divsimF _)) in H.
-    rewrite (str_ext (trans tau)) in H0.
     apply H in H0 as (? & ? & ?).
     rewrite str_itr in H0. destruct H0.
     + cbn in H0. apply tau_div; auto.
@@ -155,7 +155,7 @@ Lemma divsim_equiv'
   (Hfreeze : freeze = SimOpt.freeze_div)
   (Hdelay : delay = SimOpt.delay) :
   forall s t, (forall b, sim freeze lock delay b s t) ->
-  divsim' lock s t.
+  divsim lock s t.
 Proof.
   red. coinduction R CH. intros. cbn -[dot str]. repeat split; intros.
   - specialize (H true). apply sim_fp in H. apply H in H0 as []; auto.
