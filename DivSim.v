@@ -36,7 +36,7 @@ Program Definition divsimF lock : mon (St -> St -> Prop) :=
     exists t', 
       (trans tau)^* t t' /\ R s' t') /\
   (diverges s -> diverges t) /\
-  (lock = SimOpt.nolock \/ (is_stuck s -> is_stuck t))
+  lockpres lock SimOpt.delay s t
 |}.
 Next Obligation.
   repeat split; intros; auto.
@@ -44,8 +44,8 @@ Next Obligation.
   - apply H1 in H4 as (? & ? & ?). eauto.
 Qed.
 
-#[export] Instance : forall R,
-  Proper (St.(Eq) ==> St.(Eq) ==> impl) (divsimF SimOpt.nolock R).
+#[export] Instance : forall lock R,
+  Proper (St.(Eq) ==> St.(Eq) ==> impl) (divsimF lock R).
 Proof.
   cbn -[divsimF]. intros. repeat split; intros.
   - rewrite <- H in H2. apply H1 in H2 as (? & ? & ? & ? & ?).
@@ -53,10 +53,10 @@ Proof.
   - rewrite <- H in H2. apply H1 in H2 as (? & ? & ?).
     exists x1. split; auto. now rewrite <- H0.
   - rewrite <- H in H2. apply H1 in H2. now rewrite <- H0.
-  - auto.
+  - destruct H1 as (_ & _ & _ & ?). now rewrite <- H, <- H0.
 Qed.
 
-#[export] Instance : forall (R : Chain (divsimF SimOpt.nolock)),
+#[export] Instance : forall lock (R : Chain (divsimF lock)),
   Proper (St.(Eq) ==> St.(Eq) ==> impl) `R.
 Proof.
   intro. apply tower. {
@@ -65,9 +65,9 @@ Proof.
   intros. typeclasses eauto.
 Qed.
 
-Definition divsim := gfp (divsimF SimOpt.nolock).
+Definition divsim lock := gfp (divsimF lock).
 
-Program Definition divsimF' : mon (St -> St -> Prop) :=
+Program Definition divsimF' lock : mon (St -> St -> Prop) :=
 {|
   body := fun R s t => (forall o s', trans (obs o) s s' ->
     exists o' t',
@@ -77,16 +77,17 @@ Program Definition divsimF' : mon (St -> St -> Prop) :=
   (forall s', trans tau s s' ->
     exists t', 
       (trans tau)^* t t' /\ R s' t') /\
-  (diverges s -> diverges t)
+  (diverges s -> diverges t) /\
+  lockpres lock SimOpt.delay s t
 |}.
 Next Obligation.
   repeat split; intros; auto.
-  - apply H0 in H3 as (? & ? & ? & ? & ?). eauto 6.
-  - apply H1 in H3 as (? & ? & ?). eauto.
+  - apply H0 in H4 as (? & ? & ? & ? & ?). eauto 6.
+  - apply H1 in H4 as (? & ? & ?). eauto.
 Qed.
 
-#[export] Instance : forall R,
-  Proper (St.(Eq) ==> St.(Eq) ==> impl) (divsimF' R).
+#[export] Instance : forall lock R,
+  Proper (St.(Eq) ==> St.(Eq) ==> impl) (divsimF' lock R).
 Proof.
   cbn -[divsimF']. intros. repeat split; intros.
   - rewrite <- H in H2. apply H1 in H2 as (? & ? & ? & ? & ?).
@@ -94,9 +95,10 @@ Proof.
   - rewrite <- H in H2. apply H1 in H2 as (? & ? & ?).
     exists x1. split; auto. now rewrite <- H0.
   - rewrite <- H in H2. apply H1 in H2. now rewrite <- H0.
+  - rewrite <- H, <- H0. apply H1.
 Qed.
 
-#[export] Instance : forall (R : Chain divsimF'),
+#[export] Instance : forall lock (R : Chain (divsimF' lock)),
   Proper (St.(Eq) ==> St.(Eq) ==> impl) `R.
 Proof.
   intro. apply tower. {
@@ -105,7 +107,7 @@ Proof.
   intros. typeclasses eauto.
 Qed.
 
-Definition divsim' := gfp divsimF'.
+Definition divsim' lock := gfp (divsimF' lock).
 
 Section WithOpts.
 
@@ -113,7 +115,7 @@ Context (freeze : SimOpt.freeze_opt)
   (lock : SimOpt.lock_opt) (delay : SimOpt.delay_opt).
 
 Lemma divsim_divpres : forall s t,
-  divsim s t ->
+  divsim lock s t ->
   sim freeze lock delay false s t.
 Proof.
   red. coinduction R CH. intros.
@@ -126,9 +128,8 @@ Qed.
 (* ok *)
 Lemma divsim_equiv
   (Hfreeze : freeze = SimOpt.freeze_div)
-  (Hlock : lock = SimOpt.nolock)
   (Hdelay : delay = SimOpt.delay) :
-  forall b s t, divsim s t ->
+  forall b s t, divsim lock s t ->
   sim freeze lock delay b s t.
 Proof.
   red. coinduction R CH. intros. destruct b.
@@ -147,15 +148,14 @@ Proof.
       * apply CH. rewrite H0. apply H1.
       * apply CH. rewrite H0. apply H1.
     + eapply tau_delay; eauto.
-  - now left.
+  - apply (gfp_fp (divsimF _)) in H. rewrite Hdelay. apply H.
 Qed.
 
 Lemma divsim_equiv'
   (Hfreeze : freeze = SimOpt.freeze_div)
-  (Hlock : lock = SimOpt.nolock)
   (Hdelay : delay = SimOpt.delay) :
   forall s t, (forall b, sim freeze lock delay b s t) ->
-  divsim' s t.
+  divsim' lock s t.
 Proof.
   red. coinduction R CH. intros. cbn -[dot str]. repeat split; intros.
   - specialize (H true). apply sim_fp in H. apply H in H0 as []; auto.
@@ -176,6 +176,7 @@ Proof.
     cbn. apply sim_fp in H. revert H0. induction H. intros.
     apply (gfp_fp divergesF) in H0 as (? & ? & ?). apply H in H0. destruct H0; eauto.
     destruct DIV. apply H2 in H1 as (? & ? & ?). eauto.
+  - subst. specialize (H true). apply sim_fp in H. apply H.
 Qed.
 
 End WithOpts.
