@@ -99,3 +99,39 @@ Proof.
   - apply H2.
   Unshelve. apply proper_sym_impl_iff_2; typeclasses eauto.
 Qed.
+
+Lemma hrel_itr_ind_l' {X : Type} :
+  forall (i : hrel X X) (P : X -> X -> Prop),
+  (forall s t, i s t -> P s t) ->
+  (forall s t u, i s t -> P t u -> P s u) ->
+  forall s t, i^+ s t -> P s t.
+Proof.
+  intros.
+  epose proof (itr_ind_l1 (X := hrel_monoid_ops)). specialize (H2 X i P). cbn in H2. eapply H2.
+  - intros. now apply H.
+  - intros. red in H3. destruct H3. eapply H0; eauto.
+  - apply H1.
+Qed.
+
+Lemma itr_ext_hrel :
+  forall X (R : hrel X X) x y, R x y -> R^+ x y.
+Proof.
+  intros.
+  pose proof itr_ext R. cbn in H0. apply H0. apply H.
+Qed.
+Hint Resolve itr_ext_hrel : optsim.
+
+#[export] Instance itr_eq X (Eq R : hrel X X) `(EQ : Equivalence _ Eq) :
+  Proper (Eq ==> Eq ==> impl) R ->
+  Proper (Eq ==> Eq ==> impl) R^+.
+Proof.
+  intro. cbn -[itr]. intros.
+  revert y y0 H0 H1.
+  eapply hrel_itr_ind_l' with (P := fun x x0 => forall y y0 : X, Eq x y -> Eq x0 y0 -> R^+ y y0).
+  3: apply H2.
+  - intros. apply itr_ext_hrel. now rewrite <- H1, <- H3.
+  - intros. apply (itr_str_l (X := hrel_monoid_ops)).
+    esplit.
+    + rewrite <- H3. apply H0.
+    + apply (str_itr' (X := hrel_monoid_ops)). now apply H1.
+Qed.

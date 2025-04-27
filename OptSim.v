@@ -72,21 +72,39 @@ Proof.
     eauto.
 Qed.
 
+(* Simulation game for observable transitions *)
+
 Variant ObsAnswer (R : relation St) s' t o : Prop :=
 | ans_obs o' t' (TR : trans (obs o') t t') (SIM : R s' t') (OBS : Robs o o') : ObsAnswer R s' t o
 | ans_delay_obs o' t' (_ : delay = SimOpt.delay) (TR : ((trans tau)^* ⋅ trans (obs o')) t t') (SIM : R s' t') (OBS : Robs o o') : ObsAnswer R s' t o
 .
 Hint Constructors ObsAnswer : optsim.
 
-#[export] Instance : forall R,
+#[export] Instance ObsAnswer_eq : forall R,
   Proper (St.(Eq) ==> St.(Eq) ==> impl) R ->
   Proper (St.(Eq) ==> St.(Eq) ==> eq ==> impl) (ObsAnswer R).
 Proof.
-  intros. cbn. intros. subst.
+  cbn. intros. subst.
   destruct H3; rewrite ?H0, ?H1 in *; eauto with optsim.
 Qed.
 
-(* delay/freeze *)
+#[export] Instance ObsAnswer_eq' R :
+  Proper (Eq St ==> Eq St ==> impl) R ->
+  Proper (Eq St ==> Eq St ==> eq ==> iff) (ObsAnswer R).
+Proof.
+  intro. cbn. intros. subst.
+  split; intro.
+  - now rewrite H0, H1 in H2.
+  - now rewrite H0, H1.
+Qed.
+
+#[export] Instance ObsAnswer_mon : Proper (leq ==> eq ==> eq ==> eq ==> impl) ObsAnswer.
+Proof.
+  cbn. intros. subst. destruct H3; esim.
+Qed.
+
+(* Simulation game for tau transitions *)
+
 Variant TauAnswer (R : relation St) Rdiv s' t : Prop :=
 | tau_exact t' (TR : trans tau t t') (SIM : R s' t')
 | tau_freeze (_ : freeze = SimOpt.freeze) (SIM : R s' t)
@@ -203,24 +221,25 @@ Definition lockpres (s t : St) :=
   (lock = SimOpt.nolock \/ (is_stuck s -> can_be_stuck t)).
 Hint Unfold lockpres : optsim.
 
-Definition simGame R s t :=
-  (forall o s', trans (obs o) s s' -> ObsAnswer (R true) s' t o) /\
+Definition simGame (R : bool -> hrel St St) s t :=
+  (forall o s', trans (obs o) s s' -> ObsAnswer ((R true)^+) s' t o) /\
   (forall s', trans tau s s' -> TauAnswer (R true) (R false) s' t) /\
   lockpres s t.
 
-Variant simF_ R : bool -> St -> St -> Prop :=
+Variant simF_ R : bool -> hrel St St :=
 | simF_game s t : simGame R s t -> simF_ R true s t
 (*| sim_ub*)
 | simF_divpres s t : divpresF (R false) s t -> simF_ R false s t.
 
 Program Definition simF :
-  mon (bool -> St -> St -> Prop) :=
+  mon (bool -> hrel St St) :=
 {| body R b s t :=
   simF_ R b s t
 |}.
 Next Obligation.
   destruct H0; constructor; repeat split; intros.
-  - apply H0 in H1 as []; esim.
+  - apply H0 in H1. eapply ObsAnswer_mon. eapply itr_leq. cbn. apply H.
+    all: esim.
   - apply H0 in H1 as []; esim.
   - now apply H0.
   - eapply (Hbody divpresF). 2: { apply H0. } cbn. intros. now apply H.
@@ -277,7 +296,7 @@ Proof.
   cbn. intros. eapply Chain_simF_eq; eauto.
 Qed.
 
-Definition sim := gfp simF.
+Definition sim : bool -> hrel St St := gfp simF.
 
 Lemma simF_false : forall R s t,
   simF R false s t ->
@@ -563,7 +582,6 @@ Qed.
 
 Theorem upto_tau_r :
   forall s t t'
-    (* FIXME with the right def, no need for Hstuck *)
     (Hdelay : delay = SimOpt.delay),
   (trans tau)^* t t' ->
   `R true s t' ->
@@ -770,7 +788,7 @@ Qed.
 Lemma sim_game_delay_obs : forall s s' t o,
 ((trans tau)^*⋅trans (obs o)) s s' ->
 sim true s t ->
-exists t' o', ((trans tau)^*⋅trans (obs o')) t t' /\ sim true s' t' /\ Robs o o'.
+exists t' o', ((trans tau)^*⋅trans (obs o')) t t' /\ (sim true)^+ s' t' /\ Robs o o'.
 Proof.
   intros. destruct H as [s0 TR0 TR].
   eapply sim_game_delay_tau in TR0; eauto.
@@ -780,12 +798,21 @@ Proof.
   - exists t'0, o'. split; auto. rewrite <- str_trans, <- dotA. esplit; eauto.
 Qed.
 
+#[export] Instance trans_itr X (R : hrel X X) : Transitive (itr (ops := hrel_monoid_ops) _ R).
+Proof.
+  red. intros. apply (itr_trans (X := hrel_monoid_ops)).
+  esplit; eauto.
+Qed.
+
 #[export] Instance sim_trans (OBS : Transitive Robs) : forall b, Transitive (sim b).
 Proof.
   intros []. 2: typeclasses eauto.
   cbn. red. coinduction R CH. intros. apply simF_equiv.
+  assert (TRANS : Transitive (sim true : hrel St St)^+). { typeclasses eauto. }
   repeat split; intros.
-  - apply sim_fp in H. apply H in H1 as [].
+  - eapply ObsAnswer_mon. 2, 3, 4: reflexivity.
+    { cbn -[itr]. intros. eapply (itr_leq (X := hrel_monoid_ops)). apply (gfp_chain R). apply H2. }
+    apply sim_fp in H. apply H in H1 as [].
     + apply sim_fp in H0. apply H0 in TR as []; esim.
     + eapply sim_game_delay_obs in TR as (t'' & o'' & TR & SIM' & OBS'); esim.
   - apply sim_fp in H. apply H in H1 as []; esim.
@@ -801,6 +828,15 @@ Proof.
       apply (gfp_chain R). etransitivity; eauto. now apply sim_f_t.
   - apply sim_fp in H as ?. destruct H1 as (_ & _ & ?).
     eapply lockpres_sim_r in H1; eauto.
+Qed.
+
+Lemma itr_sim : forall b s t, Transitive Robs -> (sim b)^+ s t <-> sim b s t.
+Proof.
+  split; intro.
+  - eapply hrel_itr_ind_l'. 3: apply H0.
+    + auto.
+    + intros. etransitivity; eauto.
+  - now apply itr_ext_hrel.
 Qed.
 
 End SimDef.
@@ -827,6 +863,49 @@ Proof.
   - right. apply DIV in H1. apply simF_equiv in H1. apply H1; auto.
 Qed.
 
+Lemma ObsAnswer_sim_r :
+  forall freeze lock delay (OBS : Transitive Robs)
+  (R : Chain (simF freeze lock delay)) s' t t' o,
+  ObsAnswer delay (`R true : hrel St St)^+ s' t' o ->
+  sim freeze lock delay true t' t ->
+  ObsAnswer delay (`R true : hrel St St)^+ s' t o.
+Proof.
+  intros.
+  assert (TRANS : Transitive (`R true)^+). { typeclasses eauto. }
+  destruct H.
+  - apply (gfp_bchain R) in H0.
+    apply simF_equiv in H0. apply H0 in TR. destruct TR; esim.
+  - destruct TR as [t'' TR0 TR].
+    eapply sim_inv_taustar_l in H0; eauto.
+    apply sim_fp in H0. apply H0 in TR.
+    eapply ObsAnswer_mon in TR.
+    3, 4, 5: reflexivity.
+    2: { cbn -[itr]. intros. apply itr_sim, (gfp_chain R) in H1; auto. apply H1. }
+    destruct TR; esim.
+Qed.
+
+Theorem upto_sim_r_obs :
+  forall freeze lock delay (R : Chain (simF freeze lock delay)) s t t'
+    (OBS : Transitive Robs) (Hobs : is_obs_state s),
+  `R true s t' ->
+  sim freeze lock delay true t' t ->
+  `R true s t.
+Proof.
+  intros ????.
+  apply tower. {
+    intros ???????????. red.
+    eapply H; eauto.
+    apply leq_infx in H2. apply H2, H0.
+  }
+  intros. constructor. apply simF_equiv in H0.
+  repeat split; intros; subst.
+  - eapply ObsAnswer_sim_r; eauto.
+    apply H0 in H2 as []; esim.
+  - now apply Hobs in H2.
+  - destruct H0 as (_ & _ & ?).
+    eapply lockpres_sim_r in H0; eauto.
+Qed.
+
 Theorem upto_sim_r :
   forall freeze lock delay (R : Chain (simF freeze lock delay)) s t t'
     (OBS : Transitive Robs),
@@ -842,13 +921,8 @@ Proof.
   }
   intros. constructor. apply simF_equiv in H0.
   repeat split; intros; subst.
-  - apply H0 in H2 as []; auto.
-    + apply sim_fp in H1.
-      apply H1 in TR. destruct TR; eauto with optsim.
-    + destruct TR as [t'' TR1 TR2].
-      subst. eapply sim_inv_taustar_l in H1; eauto.
-      apply sim_fp in H1.
-      apply H1 in TR2; auto. destruct TR2; eauto with optsim.
+  - eapply ObsAnswer_sim_r; eauto. 2: { instantiate (1 := t'). admit. }
+    apply H0 in H2 as []; esim.
   - apply H0 in H2 as []; auto.
     + (* tau_exact *) apply sim_fp in H1.
       apply H1 in TR as ?. destruct H2; eauto with optsim.
@@ -869,6 +943,31 @@ Proof.
       destruct freeze; destruct TR2; try discriminate; eauto with optsim.
   - destruct H0 as (_ & _ & ?).
     eapply lockpres_sim_r in H0; eauto.
+Admitted.
+
+Lemma can_be_stuck_obs_state : forall delay s,
+  is_obs_state s ->
+  can_be_stuck delay s ->
+  is_stuck s.
+Proof.
+  intros.
+  destruct H0; auto.
+  destruct H0 as (-> & ? & ? & ?).
+  rewrite str_unfold_l in H0. destruct H0.
+  - cbn in H0. now rewrite H0.
+  - destruct H0. now apply H in H0.
+Qed.
+
+Lemma lockpres_obs_state_r : forall lock delay s t,
+  is_obs_state t ->
+  lockpres lock delay s t ->
+  lockpres lock SimOpt.nodelay s t.
+Proof.
+  intros. destruct lock.
+  2: { now left. }
+  destruct H0; try discriminate.
+  right. intro.
+  left. eapply can_be_stuck_obs_state; eauto.
 Qed.
 
 Lemma lockpres_trans_nodelay_r : forall lock delay s t u,
@@ -880,6 +979,37 @@ Proof.
   2: { now left. }
   destruct H, H0; try discriminate.
   right. intro. apply H in H1. now destruct H1 as [|[? _]]; auto.
+Qed.
+
+Theorem upto_sim_l_obs :
+  forall freeze lock delay (R : Chain (simF freeze lock delay)) s s' t
+    (OBS : Transitive Robs),
+  forall (Hobs : is_obs_state s) (Hobs' : is_obs_state s'),
+  `R true s' t ->
+  sim freeze lock delay true s s' ->
+  `R true s t.
+Proof.
+  intros ????.
+  apply tower. {
+    intros ????????????. red.
+    eapply H; eauto.
+    apply leq_infx in H2. apply H2, H0.
+  }
+  clear R. intros R **.
+  assert (TRANS : Transitive (`R true : hrel St St)^+). { typeclasses eauto. }
+  clear H. set (H := True).
+  constructor. apply sim_fp in H1. apply simF_equiv in H0.
+  repeat split; intros; subst.
+  - apply H1 in H2 as [].
+    + apply itr_sim, (gfp_chain R) in SIM; auto.
+      apply H0 in TR; auto. destruct TR; eauto with optsim.
+    + apply itr_sim, (gfp_chain R) in SIM; auto.
+      rewrite str_unfold_l, dotplsx, dot1x in TR.
+      destruct TR as [TR | TR]. 2: { rewrite <- dotA in TR. destruct TR. now apply Hobs' in H3. }
+      apply H0 in TR as []; esim.
+  - now apply Hobs in H2.
+  - destruct H0 as (_ & _ & ?), H1 as (_ & _ & ?); auto.
+    eapply lockpres_trans_nodelay_r; eauto. eapply lockpres_obs_state_r; eauto.
 Qed.
 
 Theorem upto_sim_l :
@@ -895,10 +1025,14 @@ Proof.
     eapply H; eauto.
     apply leq_infx in H2. apply H2, H0.
   }
-  intros. constructor. apply sim_fp in H1. apply simF_equiv in H0.
+  clear R. intros R **.
+  assert (TRANS : Transitive (`R true : hrel St St)^+). { typeclasses eauto. }
+  constructor. apply sim_fp in H1. apply simF_equiv in H0.
   repeat split; intros; subst.
   - apply H1 in H2 as [].
-    + apply H0 in TR; auto. destruct TR; eauto with optsim.
+    + replace SimOpt.nodelay with delay in SIM by admit.
+      apply itr_sim, (gfp_chain R) in SIM; auto.
+      apply H0 in TR; auto. destruct TR; eauto with optsim.
     + discriminate.
   - apply H1 in H2 as [].
     + (* tau_exact *)
@@ -906,10 +1040,10 @@ Proof.
       (* freeze_div *) subst. apply tau_div; eauto.
       eapply divpres_trans_l with (t := t'). apply DIV. apply sim_f_t; auto. admit.
     + (* tau_freeze *) subst freeze.
-      eapply tau_freeze; eauto. eapply H; eauto. apply (b_chain x). apply simF_equiv. apply H0.
+      eapply tau_freeze; eauto. eapply H; eauto. apply (b_chain R). apply simF_equiv. apply H0.
     + (* tau_div *) subst freeze.
       eapply tau_div; eauto with optsim.
-      eapply H; eauto. apply (b_chain x). apply simF_equiv. apply H0.
+      eapply H; eauto. apply (b_chain R). apply simF_equiv. apply H0.
       apply simF_equiv in H0; auto. eapply simF_f_t in H0. 2: discriminate.
       apply divpres_trans_l with (s := s'0) in H0; auto. apply sim_f_t; auto. admit.
     + (* tau_delay *)
@@ -920,15 +1054,15 @@ Admitted.
 
 (*
 Lemma wsim_obs' :
-  forall s t
+  forall freeze lock delay (R : Chain (simF freeze lock delay)) s t
     (Hstuck : extrans s \/ lock = SimOpt.nolock),
   is_obs_state s ->
-  (forall o s', trans (obs o) s s' -> exists o' tt' t', trans (obs o') t t' /\ `R s' (tt') /\ Robs o o' /\ trans tau tt' t') ->
-  wsimF div lock exp ub `R s t.
+  (forall o s', trans (obs o) s s' -> exists o' tt' t', trans (obs o') t t' /\ `R true s' (tt') /\ Robs o o' /\ trans tau tt' t') ->
+  simF freeze lock delay `R true s t.
 Proof.
-  intros. repeat split; intros; subst.
-  - apply H0 in H1 as (? & ? & ? & ? & ? & ? & ?).
-    exists x, x1. split. admit. split; auto.
+  intros. apply simF_equiv. repeat split; intros; subst.
+  - apply H0 in H1 as (? & ? & ? & ? & ? & ? & ?); esim.
+    eapply ans_obs; eauto.
   - now apply H in H1.
   - now eapply diverges_obs_state in H2.
   - destruct Hstuck; try discriminate.

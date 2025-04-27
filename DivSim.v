@@ -140,7 +140,7 @@ Proof.
   repeat split; intros.
   - apply (gfp_fp (divsimF _)) in H. destruct H as (? & ? & _).
     apply H in H0 as (? & ? & ? & ? & ?).
-    eapply ans_delay_obs; eauto.
+    eapply ans_delay_obs; esim.
   - apply (gfp_fp (divsimF _)) in H.
     apply H in H0 as (? & ? & ?).
     rewrite str_itr in H0. destruct H0.
@@ -153,16 +153,17 @@ Qed.
 
 Lemma divsim_equiv'
   (Hfreeze : freeze = SimOpt.freeze_div)
-  (Hdelay : delay = SimOpt.delay) :
+  (Hdelay : delay = SimOpt.delay)
+  (OBS : Transitive Robs) :
   forall s t, (forall b, sim freeze lock delay b s t) ->
   divsim lock s t.
 Proof.
   red. coinduction R CH. intros. cbn -[dot str]. repeat split; intros.
   - specialize (H true). apply sim_fp in H. apply H in H0 as []; auto.
-    + exists o', t'. split. { now apply trans_add_delay. }
+    + apply itr_sim in SIM; auto. exists o', t'. split. { now apply trans_add_delay. }
       split; auto. apply CH. intros. destruct b; auto.
       now apply sim_f_t.
-    + exists o', t'. repeat split; auto.
+    + apply itr_sim in SIM; auto. exists o', t'. repeat split; auto.
       apply CH. intros. destruct b; auto. now apply sim_f_t.
   - specialize (H true). apply sim_fp in H. apply H in H0 as []; auto.
     + exists t'. split. { now rewrite <- str_ext. }
