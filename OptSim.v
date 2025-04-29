@@ -472,101 +472,6 @@ Proof.
   - destruct b; constructor; esim. repeat split; esim.
 Qed.
 
-(* adds a tau on the right *)
-(*Theorem upto_tau_r' :
-  forall s t t'
-    (Hfreeze : freeze = SimOpt.freeze),
-  (trans tau t t' /\ forall l t'', trans l t t'' -> l = tau /\ t'' = t') ->
-  `R true s t ->
-  `R true s t'.
-Proof.
-  apply tower. {
-    intros ? INC s t t' ?????. red.
-    eapply INC; auto.
-    apply H.
-    apply leq_infx in H1.
-    now apply H1.
-  }
-  intros. destruct H0. repeat split; intros.
-  + (* observable event *)
-    destruct H1. apply H1 in H3 as [].
-    * now apply H2 in TR as [? _].
-    * eright; eauto.
-      rewrite str_itr, dotplsx in TR. destruct TR as [TR | TR].
-      { rewrite dot1x in TR. now apply H2 in TR. }
-      rewrite itr_str_l in TR. rewrite <- dotA in TR. destruct TR as [t0 TR1 TR2].
-      apply H2 in TR1 as [_ ->]. apply TR2.
-  + (* tau*)
-    intros. apply H1 in H3 as [].
-    * apply H2 in TR as [_ ->]. econstructor 2; eauto.
-    * econstructor 2; eauto.
-    * now rewrite Hfreeze in H3.
-    * rewrite itr_str_l in TR. destruct TR as [t0 TR1 TR2].
-      apply H2 in TR1 as [_ ->]. eapply tau_weak; eauto. typeclasses eauto.
-  + (* deadlock *)
-    destruct H1 as (_ & _ & []); auto.
-    right. intro. apply H1 in H3. intro. eauto with optsim.
-Qed.
-
-Theorem upto_tau_r'' :
-  forall s t t' t0,
-  trans tau t t' ->
-  (trans tau t0 t' /\ forall l t'', trans l t0 t'' -> l = tau /\ St.(Eq) t'' t') ->
-  `R s t0 ->
-  `R s t.
-Proof.
-  apply tower. {
-    intros ? INC s t t' ??????. red.
-    eapply INC; eauto.
-    now apply H1.
-  }
-  intros. repeat split; intros; subst.
-  + (* observable event *)
-    apply H0 in H3 as [].
-    * eleft; eauto. now apply H2 in TR as [? _].
-    * eright; eauto. rewrite str_itr, dotplsx, dot1x in TR |- *.
-      destruct TR; [left | right].
-      now apply H2 in H4 as [? _].
-      destruct H4. admit.
-  + (* tau *)
-    apply H0 in H3 as [].
-    * apply H2 in TR as [_ ?]. rewrite H3 in SIM.
-      econstructor 1; eauto.
-    * apply tau_freeze; auto. eapply H; eauto.
-    * apply tau_div; auto. apply SIM; auto.
-    * econstructor 4; eauto.
-      rewrite itr_str_l in TR |- *. admit.
-  + (* deadlock *)
-    destruct H0 as (_ & _ & []); auto.
-    right. intros. apply H0 in H3.
-    intro. apply H3. econstructor; eapply H2.
-Admitted.
-*)
-
-Theorem sim_tau_l (Hfreeze : freeze = SimOpt.freeze_div) :
-  forall b s t,
-  is_tau_state s ->
-  forall (Hstuck : extrans s),
-  (forall s', trans tau s s' -> `R b s' t) ->
-  `R b s t.
-Proof.
-  apply tower. {
-    intros ??????????. apply H; auto.
-    intros. apply H1; auto.
-  }
-  clear R. intros R **. destruct b.
-  - constructor.
-    repeat split; intros.
-    + now apply H0 in H2.
-    + apply H1 in H2. apply tau_div; auto. apply (b_chain R). apply H2.
-      apply simF_f_t; auto. now rewrite Hfreeze.
-    + esim.
-  - constructor. constructor.
-    intros ??.
-    apply H1 in H2 as ?. apply simF_equiv in H3. destruct H3.
-    eapply dtau_div; eauto. constructor. apply H3.
-Qed.
-
 Lemma lockpres_taustar_r (Hdelay : delay = SimOpt.delay) :
   forall s t u,
   lockpres s u ->
@@ -848,6 +753,47 @@ Hint Resolve simF_false : optsim.
 Hint Resolve simF_true : optsim.
 
 (* Up-to principles with heterogeneous options *)
+
+Theorem simF_step_freeze :
+  forall lock delay (R : Chain (simF SimOpt.freeze_div lock delay)) s t,
+  (simGame SimOpt.freeze lock delay `R s t) ->
+  `R true s t.
+Proof.
+  intros ???. apply tower. {
+    intros ???????. apply H; auto.
+    apply simF_equiv in H0. apply simF_equiv.
+    eapply (Hbody (simF _  _ _)). apply leq_infx. apply H1.
+    apply H0.
+  }
+  clear R. intros R **.
+  intros.
+  apply simF_equiv. repeat split; intros.
+  - apply H0 in H1 as [].
+    + eapply ans_obs; eauto. eapply (itr_leq (X := hrel_monoid_ops)). apply (b_chain R). assumption.
+    + eapply ans_delay_obs; eauto. eapply (itr_leq (X := hrel_monoid_ops)). apply (b_chain R). assumption.
+  - apply H0 in H1 as []; esim.
+    + eapply tau_exact; eauto. now apply (b_chain R).
+    + apply tau_div; auto. apply (b_chain R). apply SIM.
+      apply simF_f_t. easy. apply SIM.
+    + discriminate.
+    + eapply tau_delay; eauto. apply (b_chain R). apply SIM.
+  - apply H0.
+Qed.
+
+Corollary simF_tau_l :
+  forall lock delay (R : Chain (simF SimOpt.freeze_div lock delay)) s t,
+  is_tau_state s ->
+  forall (Hstuck : extrans s),
+  (forall s', trans tau s s' -> `R true s' t) ->
+  `R true s t.
+Proof.
+  intros ???. intros.
+  eapply simF_step_freeze.
+  repeat split; intros.
+  - now apply H in H1.
+  - apply H0 in H1. apply tau_freeze; auto.
+  - right. esim.
+Qed.
 
 Lemma divpres_nofreeze_r : forall lock delay (R : Chain (simF SimOpt.freeze_div lock delay)) s t u,
   `R false s t ->
