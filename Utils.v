@@ -135,3 +135,11 @@ Proof.
     + rewrite <- H3. apply H0.
     + apply (str_itr' (X := hrel_monoid_ops)). now apply H1.
 Qed.
+
+Module SimOpt.
+
+  Variant freeze_opt := freeze_div | freeze | nofreeze.
+  Variant lock_opt := lock | nolock.
+  Variant delay_opt := delay | nodelay.
+
+End SimOpt.

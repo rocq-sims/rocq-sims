@@ -14,14 +14,6 @@ From OptSim Require Import Utils LTS Divergence.
 
 Import CoindNotations.
 
-Module SimOpt.
-
-  Variant freeze_opt := freeze_div | freeze | nofreeze.
-  Variant lock_opt := lock | nolock.
-  Variant delay_opt := delay | nodelay.
-
-End SimOpt.
-
 (*Record SimOptions :=
 {
   freeze : SimOpt.freeze_opt;
@@ -45,32 +37,7 @@ Section SimDef.
 
 Context (freeze : SimOpt.freeze_opt) (lock : SimOpt.lock_opt) (delay : SimOpt.delay_opt).
 
-Definition can_be_stuck s :=
-  is_stuck s \/ (delay = SimOpt.delay /\ exists s', (trans tau)^* s s' /\ is_stuck s').
-Hint Unfold can_be_stuck : optsim.
-
-#[export] Instance : Proper (St.(Eq) ==> impl) can_be_stuck.
-Proof.
-  cbn. intros. destruct H0 as [ | (? & ? & ? & ?)].
-  - rewrite H in H0. now left.
-  - rewrite H in H1. right; eauto.
-Qed.
-
-Lemma is_stuck_can_be_stuck : forall s, is_stuck s -> can_be_stuck s.
-Proof.
-  intros. now left.
-Qed.
-
-Lemma can_be_stuck_taustar : forall (Hdelay : delay = SimOpt.delay) s s',
-  can_be_stuck s' ->
-  (trans tau)^* s s' ->
-  can_be_stuck s.
-Proof.
-  intros. right. destruct H as [| (? & ? & ? & ?)].
-  - eauto.
-  - assert ((trans tau)^* s x). { rewrite <- str_trans. esplit; eauto. }
-    eauto.
-Qed.
+Notation can_be_stuck := (@can_be_stuck lts delay).
 
 (* Simulation game for observable transitions *)
 
@@ -891,7 +858,7 @@ Proof.
     eapply lockpres_sim_r in H0; eauto.
 Admitted.
 
-Lemma can_be_stuck_obs_state : forall delay s,
+Lemma can_be_stuck_obs_state : forall delay (s : St),
   is_obs_state s ->
   can_be_stuck delay s ->
   is_stuck s.

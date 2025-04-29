@@ -9,6 +9,7 @@ From RelationAlgebra Require Import
      rewriting
      normalisation
      monoid.
+From OptSim Require Import Utils.
 
 Variant label {S : Type} := obs (s : S) | tau.
 
@@ -59,6 +60,18 @@ End LockLTS.*)
 Section LTS.
 
 Context {lts : LTS}.
+Context (delay : SimOpt.delay_opt).
+
+#[global] Instance :
+  Proper (weq ==> eq ==> eq ==> iff) (hrel_of (n := lts.(St)) (m := lts.(St))).
+Proof.
+  cbn. intros. subst. apply H.
+Qed.
+
+#[global] Instance : Proper (leq ==> eq ==> eq ==> impl) (hrel_of (n := lts.(St)) (m := lts.(St))).
+Proof.
+  cbn. intros. subst. now apply H.
+Qed.
 
 #[global] Instance :
   Proper (weq ==> eq ==> eq ==> iff) (hrel_of (n := lts.(St)) (m := lts.(St))).
@@ -80,6 +93,8 @@ Definition is_tau_state st :=
 Definition is_obs_state st :=
   forall l st', lts.(trans) l st st' -> is_obs l = true.
 
+(* Stuck and non-stuck LTSs *)
+
 Variant extrans (st : lts.(St)) : Prop :=
   trans_intro l st' : trans l st st' -> extrans st.
 Hint Constructors extrans : optsim.
@@ -97,6 +112,33 @@ Proof.
   cbn. unfold is_stuck. intros. now setoid_rewrite H.
 Qed.
 
+Definition can_be_stuck s :=
+  is_stuck s \/ (delay = SimOpt.delay /\ exists s', (trans tau)^* s s' /\ is_stuck s').
+Hint Unfold can_be_stuck : optsim.
+
+#[export] Instance : Proper (lts.(St).(Eq) ==> impl) can_be_stuck.
+Proof.
+  cbn. intros. destruct H0 as [ | (? & ? & ? & ?)].
+  - rewrite H in H0. now left.
+  - rewrite H in H1. right; eauto.
+Qed.
+
+Lemma is_stuck_can_be_stuck : forall s, is_stuck s -> can_be_stuck s.
+Proof.
+  intros. now left.
+Qed.
+
+Lemma can_be_stuck_taustar : forall (Hdelay : delay = SimOpt.delay) s s',
+  can_be_stuck s' ->
+  (trans tau)^* s s' ->
+  can_be_stuck s.
+Proof.
+  intros. right. destruct H as [| (? & ? & ? & ?)].
+  - eauto.
+  - assert ((trans tau)^* s x). { rewrite <- str_trans. esplit; eauto. }
+    eauto.
+Qed.
+
 Lemma trans_add_delay : forall (l : @label lts.(Observable)),
   trans l ≦ (trans tau)^* ⋅ trans l.
 Proof.
@@ -106,3 +148,4 @@ Qed.
 End LTS.
 
 Hint Constructors extrans : optsim.
+Hint Unfold can_be_stuck : optsim.
