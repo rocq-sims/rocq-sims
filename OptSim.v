@@ -539,6 +539,25 @@ Proof.
   - intros. apply H1. eapply sim_inv_tau_l; eauto.
 Qed.
 
+(*Definition epsilon s s' := forall l t, trans l s t -> trans l s' t.
+
+Lemma simF_epsilon_l :
+  forall R s S' t (Hstuck : extrans s),
+  (forall l t, trans l s t -> exists s', S' s' /\ trans l s' t) ->
+  ((*forall l s' t, S' s' -> trans l s' t -> trans l s t*)True) ->
+  (forall s', S' s' -> simF R true s t) ->
+  simF R true s t.
+Proof.
+  intros. apply simF_equiv. repeat split; intros.
+  - apply H in H2 as ?. destruct H3 as (? & ? & ?).
+    apply H1 in H3 as ?. apply simF_equiv in H5. apply H5.
+    apply H2.
+  - apply H in H2 as ?. destruct H3 as (? & ? & ?).
+    apply H1 in H3 as ?. apply simF_equiv in H5. apply H5.
+    apply H2.
+  - right. esim.
+Qed.*)
+
 Lemma lockpres_sim_r :
   forall s t u, lockpres s t -> sim true t u ->
   lockpres s u.
