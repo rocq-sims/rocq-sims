@@ -28,7 +28,7 @@ Context {lts : LTS}.
 Notation Observable := lts.(Observable).
 Notation St := lts.(St).
 Notation trans := lts.(trans).
-Notation epsilon := lts.(epsilon).
+(*Notation epsilon := lts.(epsilon).*)
 Notation Robs := lts.(Robs).
 Notation ub_state := lts.(ub_state).
 Notation label := (@label Observable).
@@ -210,6 +210,14 @@ Next Obligation.
   - apply H0 in H1 as []; esim.
   - now apply H0.
   - eapply (Hbody divpresF). 2: { apply H0. } cbn. intros. now apply H.
+Qed.
+
+Lemma tau_div' : forall (R : Chain simF) s' t,
+  freeze = SimOpt.freeze_div ->
+  (forall b, `R b s' t) ->
+  TauAnswer (`R true) (`R false) s' t.
+Proof.
+  intros. apply tau_div; auto.
 Qed.
 
 #[export] Instance lockpres_eq :
@@ -539,7 +547,7 @@ Proof.
   - intros. apply H1. eapply sim_inv_tau_l; eauto.
 Qed.
 
-(*Definition epsilon s s' := forall l t, trans l s t -> trans l s' t.
+Definition epsilon s s' := forall l t, trans l s' t -> trans l s t.
 
 Lemma simF_epsilon_l :
   forall R s S' t (Hstuck : extrans s),
@@ -556,7 +564,50 @@ Proof.
     apply H1 in H3 as ?. apply simF_equiv in H5. apply H5.
     apply H2.
   - right. esim.
-Qed.*)
+Qed.
+
+Lemma upto_epsilon_l :
+  forall (R : Chain simF) s S' t (Hstuck : extrans s),
+  (forall l t, trans l s t -> exists s', S' s' /\ trans l s' t) ->
+  ((*forall l s' t, S' s' -> trans l s' t -> trans l s t*)True) ->
+  (forall s', S' s' -> `R true s t) ->
+  `R true s t.
+Proof.
+  intro. apply tower. {
+    intros ???????????. eapply H; eauto.
+    intros. apply leq_infx in H3. apply H3. eauto.
+  }
+  clear R. intros R **. eapply simF_epsilon_l; eauto.
+Qed.
+
+Lemma upto_epsilon_r :
+  forall (R : Chain simF) b s t t' (Hstuck : extrans s),
+  (*(forall l t, trans l s t -> exists s', S' s' /\ trans l s' t) ->*)
+  epsilon t t' ->
+  `R b s t' ->
+  `R b s t.
+Proof.
+  intro. apply tower. {
+    intros ???????????. eapply H; eauto.
+  }
+  clear R. intros R **.
+  destruct b. 2: {
+    apply simF_equiv in H1. induction H1.
+    do 2 constructor. intros ??.
+    apply H1 in H2 as []; esim.
+    destruct DIV. apply dtau_div.
+    apply simF_equiv. apply H3; auto. admit.
+  }
+  apply simF_equiv in H1. apply simF_equiv. repeat split; intros.
+  - apply H1 in H2 as []; esim.
+    eapply ans_delay_obs; eauto.
+    admit.
+  - apply H1 in H2 as []; esim.
+    + apply tau_freeze; auto. eapply H; eauto. admit.
+    + apply tau_div'; auto. intro. eapply H; eauto. admit.
+      now destruct b.
+Admitted.
+
 
 Lemma lockpres_sim_r :
   forall s t u, lockpres s t -> sim true t u ->

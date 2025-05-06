@@ -20,7 +20,7 @@ Context {lts : LTS}.
 Notation Observable := lts.(Observable).
 Notation St := lts.(St).
 Notation trans := lts.(trans).
-Notation epsilon := lts.(epsilon).
+(*Notation epsilon := lts.(epsilon).*)
 Notation Robs := lts.(Robs).
 Notation ub_state := lts.(ub_state).
 Notation label := (@label Observable).
@@ -186,6 +186,13 @@ Proof.
   - right. now eapply DIV.
 Qed.
 
+#[export] Instance Chain_divpresF_eq (R : Chain divpresF) :
+  Proper (Eq St ==> Eq St ==> impl) `R.
+Proof.
+  apply tower. { intros ???????????. eapply H; eauto. }
+  typeclasses eauto.
+Qed.
+
 #[export] Instance : forall (R : Chain divergesF),
   Proper (St.(Eq) ==> impl) `R.
 Proof.
@@ -197,7 +204,7 @@ Qed.
 
 Definition divpres := gfp divpresF.
 
-(* Axiom used in DivSim *)
+(* Axiom used in DivSim and Trace *)
 Axiom diverges_lem : forall s, diverges s \/ nodiv s.
 
 Lemma divpres_impl : forall s t,

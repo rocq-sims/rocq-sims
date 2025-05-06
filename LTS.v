@@ -17,13 +17,13 @@ Record LTS := {
   Observable : Type;
   St : EqType;
   trans : @label Observable -> srel St St;
-  epsilon : srel St St;
-  Robs : Observable -> Observable -> Prop;
-  ub_state : St -> Prop;
+  (*epsilon : srel St St; (* TODO remove *)*)
+  Robs : Observable -> Observable -> Prop; (* TODO remove *)
+  ub_state : St -> Prop; (* TODO remove *)
 }.
 
 Arguments trans {lts} : rename.
-Arguments epsilon {lts} : rename.
+(*Arguments epsilon {lts} : rename.*)
 Arguments Robs {lts} : rename.
 Arguments ub_state {lts} : rename.
 
