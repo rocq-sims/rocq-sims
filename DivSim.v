@@ -20,54 +20,10 @@ Context {lts : LTS}.
 Notation Observable := lts.(Observable).
 Notation St := lts.(St).
 Notation trans := lts.(trans).
-Notation epsilon := lts.(epsilon).
+(*Notation epsilon := lts.(epsilon).*)
 Notation Robs := lts.(Robs).
 Notation ub_state := lts.(ub_state).
 Notation label := (@label Observable).
-
-(*
-Program Definition divsimF lock : mon (St -> St -> Prop) :=
-{|
-  body := fun R s t => (forall o s', ((trans tau)^* ⋅ trans (obs o)) s s' ->
-    exists o' t',
-        ((trans tau)^* ⋅ trans (obs o')) t t' /\
-      R s' t' /\
-      Robs o o') /\
-  (forall s', (trans tau)^* s s' ->
-    exists t', 
-      (trans tau)^* t t' /\ R s' t') /\
-  (diverges s -> diverges t) /\
-  lockpres lock SimOpt.delay s t
-|}.
-Next Obligation.
-  repeat split; intros; auto.
-  - apply H0 in H4 as (? & ? & ? & ? & ?). eauto 6.
-  - apply H1 in H4 as (? & ? & ?). eauto.
-Qed.
-
-#[export] Instance : forall lock R,
-  Proper (St.(Eq) ==> St.(Eq) ==> impl) (divsimF lock R).
-Proof.
-  cbn -[divsimF]. intros. repeat split; intros.
-  - rewrite <- H in H2. apply H1 in H2 as (? & ? & ? & ? & ?).
-    exists x1, x2. repeat split; auto. now rewrite <- H0.
-  - rewrite <- H in H2. apply H1 in H2 as (? & ? & ?).
-    exists x1. split; auto. now rewrite <- H0.
-  - rewrite <- H in H2. apply H1 in H2. now rewrite <- H0.
-  - destruct H1 as (_ & _ & _ & ?). now rewrite <- H, <- H0.
-Qed.
-
-#[export] Instance : forall lock (R : Chain (divsimF lock)),
-  Proper (St.(Eq) ==> St.(Eq) ==> impl) `R.
-Proof.
-  intro. apply tower. {
-    intros ???????????. eapply H; eauto.
-  }
-  intros. typeclasses eauto.
-Qed.
-
-Definition divsim lock := gfp (divsimF lock).
-*)
 
 Program Definition divsimF lock : mon (St -> St -> Prop) :=
 {|
@@ -127,8 +83,7 @@ Proof.
   eapply chain_nodiv with (R := R) (t := t) in H0. apply H0; auto.
 Qed.
 
-(* ok *)
-Lemma divsim'_equiv
+Lemma divsim_sim
   (Hfreeze : freeze = SimOpt.freeze_div)
   (Hdelay : delay = SimOpt.delay) :
   forall b s t, divsim lock s t ->
@@ -151,7 +106,7 @@ Proof.
   - apply (gfp_fp (divsimF _)) in H. rewrite Hdelay. apply H.
 Qed.
 
-Lemma divsim_equiv'
+Lemma sim_divsim
   (Hfreeze : freeze = SimOpt.freeze_div)
   (Hdelay : delay = SimOpt.delay)
   (OBS : Transitive Robs) :
