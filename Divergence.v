@@ -204,9 +204,6 @@ Qed.
 
 Definition divpres := gfp divpresF.
 
-(* Axiom used in DivSim and Trace *)
-Axiom diverges_lem : forall s, diverges s \/ nodiv s.
-
 Lemma divpres_impl : forall s t,
   divpres s t ->
   diverges s -> diverges t.
@@ -228,6 +225,31 @@ Proof.
 Qed.
 
 End WithLTS.
+
+Module Classical.
+
+From Coq Require Import Logic.Classical.
+
+Lemma nodiv_diverges {lts : LTS} : forall (s : lts.(St)),
+  ~nodiv s ->
+  diverges s.
+Proof.
+  red. coinduction R CH. intros.
+  assert (~(forall s', trans tau s s' -> nodiv s')). { intro. apply H. now constructor. }
+  eapply not_all_ex_not in H0. destruct H0 as [s' ?].
+  apply imply_to_and in H0.
+  exists s'. intuition.
+Qed.
+
+Lemma diverges_lem {lts : LTS} : forall (s : lts.(St)), diverges s \/ nodiv s.
+Proof.
+  intros.
+  pose proof (nodiv_diverges s).
+  apply imply_to_or in H.
+  destruct H; auto. apply NNPP in H; auto.
+Qed.
+
+End Classical.
 
 Hint Resolve dtau_match 2 : optsim.
 Hint Resolve dtau_div 3 : optsim.

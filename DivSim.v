@@ -78,7 +78,7 @@ Lemma divsim_divpres : forall s t,
 Proof.
   red. coinduction R CH. intros.
   apply (gfp_fp (divsimF _)) in H. destruct H as (_ & _ & ? & _).
-  destruct (diverges_lem s).
+  destruct (Classical.diverges_lem s).
   apply H in H0. eapply chain_div in H0. apply H0; auto.
   eapply chain_nodiv with (R := R) (t := t) in H0. apply H0; auto.
 Qed.
