@@ -817,10 +817,10 @@ Proof.
   - apply H0.
 Qed.
 
-Corollary simF_tau_l :
+Corollary upto_tau_l :
   forall lock delay (R : Chain (simF SimOpt.freeze_div lock delay)) s t,
   is_tau_state s ->
-  forall (Hstuck : extrans s),
+  forall (Hstuck : lock = SimOpt.nolock \/ extrans s),
   (forall s', trans tau s s' -> `R true s' t) ->
   `R true s t.
 Proof.
@@ -829,7 +829,7 @@ Proof.
   repeat split; intros.
   - now apply H in H1.
   - apply H0 in H1. apply tau_freeze; auto.
-  - right. esim.
+  - destruct Hstuck. now left. right. esim.
 Qed.
 
 Lemma divpres_nofreeze_r : forall lock delay (R : Chain (simF SimOpt.freeze_div lock delay)) s t u,
