@@ -95,7 +95,7 @@ Proof.
   repeat split; intros.
   - apply (gfp_fp (divsimF _)) in H. destruct H as (? & ? & _).
     apply H in H0 as (? & ? & ? & ? & ?).
-    eapply ans_delay_obs; esim.
+    eapply ans_obs; esim. now eapply delay_trans_dtrans.
   - apply (gfp_fp (divsimF _)) in H.
     apply H in H0 as (? & ? & ?).
     rewrite str_itr in H0. destruct H0.
@@ -115,11 +115,9 @@ Lemma sim_divsim
 Proof.
   red. coinduction R CH. intros. cbn -[dot str]. repeat split; intros.
   - specialize (H true). apply sim_fp in H. apply H in H0 as []; auto.
-    + apply itr_sim in SIM; auto. exists o', t'. split. { now apply trans_add_delay. }
-      split; auto. apply CH. intros. destruct b; auto.
-      now apply sim_f_t.
-    + apply itr_sim in SIM; auto. exists o', t'. repeat split; auto.
-      apply CH. intros. destruct b; auto. now apply sim_f_t.
+    apply itr_sim in SIM; auto. exists o', t'. split; esim.
+    split; auto. apply CH. intros. destruct b; auto.
+    now apply sim_f_t.
   - specialize (H true). apply sim_fp in H. apply H in H0 as []; auto.
     + exists t'. split. { now rewrite <- str_ext. }
       apply CH. intros []; auto. now apply sim_f_t.

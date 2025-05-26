@@ -9,6 +9,8 @@ From RelationAlgebra Require Import
      normalisation
      monoid.
 
+Hint Unfold car_of : core.
+
 Create HintDb optsim.
 #[global] Ltac esim := eauto 10 with optsim exfalso.
 

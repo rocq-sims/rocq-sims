@@ -50,8 +50,7 @@ Definition simInd_ind :
 Proof.
   intros until 1. fix F 3. intros. apply H. destruct H0. repeat split; intros.
   - apply H0 in H1 as [].
-    eleft; eauto.
-    eright; eauto.
+    econstructor; eauto.
   - apply H0 in H1 as []; esim.
   - apply H0.
 Qed.
@@ -101,6 +100,23 @@ Proof.
   - apply H in H0 as []; esim.
     apply tau_div; auto. apply simF_f_t. now rewrite H0. apply DIV.
   - apply H.
+Qed.
+
+Lemma isim_upto_tau_r (Hdelay : delay = SimOpt.delay) : forall (R : Chain isimF) s t t',
+  trans tau t t' ->
+  `R s t' ->
+  `R s t.
+Proof.
+  intro. apply tower. {
+    intros ?????????. eapply H; eauto.
+  }
+  clear R. intros R **. induction H1. repeat split; intros.
+  - apply H1 in H2 as []. econstructor; eauto. red in TR |- *. rewrite Hdelay in *.
+    rewrite str_unfold_l, dotplsx, <- dotA. right. esplit; eauto.
+  - apply H1 in H2 as []; esim.
+    eapply tau_delay; eauto. rewrite itr_unfold_l. right. esplit; eauto.
+  - destruct H1 as (_ & _ & []); auto.
+    right. intro. apply H1 in H2. eapply can_be_stuck_taustar; eauto. now rewrite <- str_ext.
 Qed.
 
 End WithLTS.

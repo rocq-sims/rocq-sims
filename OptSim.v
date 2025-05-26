@@ -38,13 +38,13 @@ Section SimDef.
 Context (freeze : SimOpt.freeze_opt) (lock : SimOpt.lock_opt) (delay : SimOpt.delay_opt).
 
 Notation can_be_stuck := (@can_be_stuck lts delay).
+Notation dtrans := (@dtrans lts delay).
 
 (* Simulation game for observable transitions *)
 
 Variant ObsAnswer (R : relation St) s' t o : Prop :=
-| ans_obs o' t' (TR : trans (obs o') t t') (SIM : R s' t') (OBS : Robs o o') : ObsAnswer R s' t o
-| ans_delay_obs o' t' (_ : delay = SimOpt.delay) (TR : ((trans tau)^* ⋅ trans (obs o')) t t') (SIM : R s' t') (OBS : Robs o o') : ObsAnswer R s' t o
-.
+| ans_obs o' t' (TR : dtrans (obs o') t t') (SIM : R s' t') (OBS : Robs o o') : ObsAnswer R s' t o.
+
 Hint Constructors ObsAnswer : optsim.
 
 #[export] Instance ObsAnswer_eq : forall R,
@@ -439,7 +439,7 @@ Section SimUpTo.
 
 Context (R : Chain simF).
 
-Definition upto_refl `{Reflexive _ Robs} b :
+#[export] Instance upto_refl `{Reflexive _ Robs} b :
   Reflexive (`R b).
 Proof.
   apply tower.
@@ -478,8 +478,9 @@ Proof.
   repeat split; intros; subst.
   + (* observable event *)
     apply H1 in H2 as [].
-    * eright; eauto. esplit; eauto.
-    * eright; auto. 2: apply SIM. 2: apply OBS. destruct TR. esplit. 2: apply H4.
+    esplit; eauto.
+    unfold dtrans in *. rewrite Hdelay in *.
+    destruct TR. esplit. 2: apply H3.
       rewrite <- str_trans. esplit; eassumption.
   + (* tau *)
     apply H1 in H2 as [].
@@ -600,7 +601,7 @@ Proof.
   }
   apply simF_equiv in H1. apply simF_equiv. repeat split; intros.
   - apply H1 in H2 as []; esim.
-    eapply ans_delay_obs; eauto.
+    esplit; eauto.
     admit.
   - apply H1 in H2 as []; esim.
     + apply tau_freeze; auto. eapply H; eauto. admit.
@@ -728,16 +729,18 @@ Proof.
 Qed.
 
 Lemma sim_game_delay_obs : forall s s' t o,
-((trans tau)^*⋅trans (obs o)) s s' ->
-sim true s t ->
-exists t' o', ((trans tau)^*⋅trans (obs o')) t t' /\ (sim true)^+ s' t' /\ Robs o o'.
+  dtrans (obs o) s s' ->
+  sim true s t ->
+  exists t' o', dtrans (obs o') t t' /\ (sim true)^+ s' t' /\ Robs o o'.
 Proof.
-  intros. destruct H as [s0 TR0 TR].
-  eapply sim_game_delay_tau in TR0; eauto.
-  destruct TR0 as (t' & TR0 & SIM).
-  apply sim_fp in SIM. apply SIM in TR as [].
-  - exists t'0, o'. split; auto. esplit; eauto.
-  - exists t'0, o'. split; auto. rewrite <- str_trans, <- dotA. esplit; eauto.
+  unfold dtrans. intros. destruct delay eqn:?.
+  - destruct H as [s0 TR0 TR].
+    eapply sim_game_delay_tau in TR0; eauto.
+    destruct TR0 as (t' & TR0 & SIM).
+    apply sim_fp in SIM. apply SIM in TR as [].
+    exists t'0, o'. split; auto. rewrite <- str_trans, <- dotA. esplit; esim.
+  - apply sim_fp in H0. apply H0 in H. destruct H. red in TR.
+    rewrite Heqd in TR. eauto.
 Qed.
 
 #[export] Instance trans_itr X (R : hrel X X) : Transitive (itr (ops := hrel_monoid_ops) _ R).
@@ -755,8 +758,7 @@ Proof.
   - eapply ObsAnswer_mon. 2, 3, 4: reflexivity.
     { cbn -[itr]. intros. eapply (itr_leq (X := hrel_monoid_ops)). apply (gfp_chain R). apply H2. }
     apply sim_fp in H. apply H in H1 as [].
-    + apply sim_fp in H0. apply H0 in TR as []; esim.
-    + eapply sim_game_delay_obs in TR as (t'' & o'' & TR & SIM' & OBS'); esim.
+    eapply sim_game_delay_obs in TR as (t'' & o'' & TR & SIM' & OBS'); esim.
   - apply sim_fp in H. apply H in H1 as []; esim.
     + (* tau_exact *) apply sim_fp in H0. apply H0 in TR as []; esim.
       apply tau_div; eauto.
@@ -806,8 +808,8 @@ Proof.
   intros.
   apply simF_equiv. repeat split; intros.
   - apply H0 in H1 as [].
-    + eapply ans_obs; eauto. eapply (itr_leq (X := hrel_monoid_ops)). apply (b_chain R). assumption.
-    + eapply ans_delay_obs; eauto. eapply (itr_leq (X := hrel_monoid_ops)). apply (b_chain R). assumption.
+    eapply ans_obs; eauto.
+    eapply (itr_leq (X := hrel_monoid_ops)). apply (b_chain R). assumption.
   - apply H0 in H1 as []; esim.
     + eapply tau_exact; eauto. now apply (b_chain R).
     + apply tau_div; auto. apply (b_chain R). apply SIM.
@@ -855,16 +857,16 @@ Lemma ObsAnswer_sim_r :
 Proof.
   intros.
   assert (TRANS : Transitive (`R true)^+). { typeclasses eauto. }
-  destruct H.
-  - apply (gfp_bchain R) in H0.
-    apply simF_equiv in H0. apply H0 in TR. destruct TR; esim.
+  destruct H. destruct delay.
   - destruct TR as [t'' TR0 TR].
     eapply sim_inv_taustar_l in H0; eauto.
     apply sim_fp in H0. apply H0 in TR.
     eapply ObsAnswer_mon in TR.
     3, 4, 5: reflexivity.
-    2: { cbn -[itr]. intros. apply itr_sim, (gfp_chain R) in H1; auto. apply H1. }
+    2: { cbn -[itr]. intros. apply itr_sim, (gfp_chain R) in H; auto. apply H. }
     destruct TR; esim.
+  - apply (gfp_bchain R) in H0.
+    apply simF_equiv in H0. apply H0 in TR. destruct TR; esim.
 Qed.
 
 Theorem upto_sim_r_obs :
@@ -983,13 +985,13 @@ Proof.
   clear H. set (H := True).
   constructor. apply sim_fp in H1. apply simF_equiv in H0.
   repeat split; intros; subst.
-  - apply H1 in H2 as [].
+  - apply H1 in H2 as []. destruct delay.
+    + apply itr_sim, (gfp_chain R) in SIM; auto.
+      red in TR. rewrite str_unfold_l, dotplsx, dot1x in TR.
+      destruct TR as [TR | TR]. 2: { rewrite <- dotA in TR. destruct TR. now apply Hobs' in H2. }
+      apply H0 in TR as []; esim.
     + apply itr_sim, (gfp_chain R) in SIM; auto.
       apply H0 in TR; auto. destruct TR; eauto with optsim.
-    + apply itr_sim, (gfp_chain R) in SIM; auto.
-      rewrite str_unfold_l, dotplsx, dot1x in TR.
-      destruct TR as [TR | TR]. 2: { rewrite <- dotA in TR. destruct TR. now apply Hobs' in H3. }
-      apply H0 in TR as []; esim.
   - now apply Hobs in H2.
   - destruct H0 as (_ & _ & ?), H1 as (_ & _ & ?); auto.
     eapply lockpres_trans_nodelay_r; eauto. eapply lockpres_obs_state_r; eauto.
@@ -1013,10 +1015,9 @@ Proof.
   constructor. apply sim_fp in H1. apply simF_equiv in H0.
   repeat split; intros; subst.
   - apply H1 in H2 as [].
-    + replace SimOpt.nodelay with delay in SIM by admit.
-      apply itr_sim, (gfp_chain R) in SIM; auto.
-      apply H0 in TR; auto. destruct TR; eauto with optsim.
-    + discriminate.
+    replace SimOpt.nodelay with delay in SIM by admit.
+    apply itr_sim, (gfp_chain R) in SIM; auto.
+    apply H0 in TR; auto. destruct TR; eauto with optsim.
   - apply H1 in H2 as [].
     + (* tau_exact *)
       apply H0 in TR as ?; auto. destruct H2; eauto with optsim.

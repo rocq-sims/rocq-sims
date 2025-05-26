@@ -90,8 +90,34 @@ Definition is_tau (l : @label lts.(Observable)) := if l then false else true.
 Definition is_tau_state st :=
   forall l st', lts.(trans) l st st' -> is_tau l = true.
 
+#[export] Instance is_tau_state_Eq : Proper (lts.(St).(Eq) ==> impl) is_tau_state.
+Proof.
+  cbn. red. intros. rewrite <- H in H1. now apply H0 in H1.
+Qed.
+
+Lemma is_tau_state_obs : forall o st st',
+  is_tau_state st ->
+  trans (obs o) st st' ->
+  False.
+Proof.
+  intros. now apply H in H0.
+Qed.
+
 Definition is_obs_state st :=
   forall l st', lts.(trans) l st st' -> is_obs l = true.
+
+#[export] Instance is_obs_state_Eq : Proper (lts.(St).(Eq) ==> impl) is_obs_state.
+Proof.
+  cbn. red. intros. rewrite <- H in H1. now apply H0 in H1.
+Qed.
+
+Lemma is_obs_state_tau : forall st st',
+  is_obs_state st ->
+  trans tau st st' ->
+  False.
+Proof.
+  intros. now apply H in H0.
+Qed.
 
 (* Stuck and non-stuck LTSs *)
 
@@ -145,7 +171,51 @@ Proof.
   intros. esplit; eauto. now rewrite <- str_refl.
 Qed.
 
+(* Posibly delayed transition *)
+
+Definition dtrans l st st' :=
+  match delay with
+  | SimOpt.nodelay => lts.(trans) l st st'
+  | SimOpt.delay => ((trans tau)^* ⋅ trans l) st st'
+  end.
+
+#[global] Instance dtrans_Eq : forall l,
+  Proper (lts.(St).(Eq) ==> lts.(St).(Eq) ==> impl) (dtrans l).
+Proof.
+  cbn. unfold dtrans. intros. destruct delay; now rewrite <- H, <- H0.
+Qed.
+
+Lemma trans_dtrans : forall l st st',
+  trans l st st' ->
+  dtrans l st st'.
+Proof.
+  intros. red. destruct delay; auto.
+  now rewrite <- str_refl, dot1x.
+Qed.
+
+Lemma delay_trans_dtrans : forall (Hdelay : delay = SimOpt.delay) l st st',
+  ((trans tau)^* ⋅ trans l) st st' ->
+  dtrans l st st'.
+Proof.
+  intros. red. now rewrite Hdelay.
+Qed.
+
+Lemma dtrans_trans : forall l st st',
+  dtrans l st st' ->
+  ((trans tau)^* ⋅ trans l) st st'.
+Proof.
+  intros. red in H. destruct delay; auto.
+  now rewrite <- str_refl, dot1x.
+Qed.
+
 End LTS.
+
+Hint Resolve is_tau_state_obs : optsim.
+Hint Resolve is_obs_state_tau : optsim.
 
 Hint Constructors extrans : optsim.
 Hint Unfold can_be_stuck : optsim.
+
+Hint Resolve trans_dtrans : optsim.
+(*Hint Resolve delay_trans_dtrans : optsim.*)
+Hint Resolve dtrans_trans : optsim.
