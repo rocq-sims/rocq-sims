@@ -110,27 +110,25 @@ Lemma sim_divsim
   (Hfreeze : freeze = SimOpt.freeze_div)
   (Hdelay : delay = SimOpt.delay)
   (OBS : Transitive Robs) :
-  forall s t, (forall b, sim freeze lock delay b s t) ->
+  forall s t, sim freeze lock delay true s t ->
   divsim lock s t.
 Proof.
   red. coinduction R CH. intros. cbn -[dot str]. repeat split; intros.
-  - specialize (H true). apply sim_fp in H. apply H in H0 as []; auto.
+  - apply sim_fp in H. apply H in H0 as []; auto.
     apply itr_sim in SIM; auto. exists o', t'. split; esim.
-    split; auto. apply CH. intros. destruct b; auto.
-    now apply sim_f_t.
-  - specialize (H true). apply sim_fp in H. apply H in H0 as []; auto.
+  - apply sim_fp in H. apply H in H0 as []; auto.
     + exists t'. split. { now rewrite <- str_ext. }
-      apply CH. intros []; auto. now apply sim_f_t.
+      now apply CH.
     + now rewrite Hfreeze in H0.
     + exists t. split. { now rewrite <- str_refl. }
-      apply CH. intros []; try easy.
+      now apply CH.
     + exists t'. split. { now rewrite <- str_itr'. }
-      apply CH. intros []; auto. now apply sim_f_t.
-  - specialize (H false). revert s t H H0. clear R CH. red. coinduction R CH. intros.
+      now apply CH.
+  - apply sim_f_t in H; auto. revert s t H H0. clear R CH. red. coinduction R CH. intros.
     cbn. apply sim_fp in H. revert H0. induction H. intros.
     apply (gfp_fp divergesF) in H0 as (? & ? & ?). apply H in H0. destruct H0; eauto.
     destruct DIV. apply H2 in H1 as (? & ? & ?). eauto.
-  - subst. specialize (H true). apply sim_fp in H. apply H.
+  - subst. apply sim_fp in H. apply H.
 Qed.
 
 End WithOpts.

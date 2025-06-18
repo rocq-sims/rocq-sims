@@ -249,6 +249,20 @@ Proof.
   destruct H; auto. apply NNPP in H; auto.
 Qed.
 
+Lemma diverges_lem_extrans {lts : LTS} :
+  forall (s : lts.(St)),
+  (forall (s s' : lts.(St)), trans tau s s' -> extrans s') ->
+  extrans s -> diverges s \/ exists o s', ((trans tau)^*⋅(trans (obs o))) s s'.
+Proof.
+  intros. destruct (diverges_lem s); auto. right.
+  induction H1. destruct H0. destruct l.
+  - exists s0, st'. esplit; eauto. now rewrite <- str_refl.
+  - apply H2 in H0 as ?; eauto.
+    destruct H3 as (o & s' & ?). exists o, s'.
+    destruct H3. esplit; eauto. rewrite str_unfold_l. right.
+    esplit; eauto.
+Qed.
+
 End Classical.
 
 Hint Resolve dtau_match 2 : optsim.

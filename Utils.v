@@ -16,6 +16,16 @@ Create HintDb optsim.
 
 (* RA lemmas *)
 
+#[global] Instance : forall n m, Proper (weq ==> eq ==> eq ==> iff) (hrel_of (n := n) (m := m)).
+Proof.
+  cbn. intros. subst. now apply H.
+Qed.
+
+#[global] Instance : forall n m, Proper (leq ==> eq ==> eq ==> impl) (hrel_of (n := n) (m := m)).
+Proof.
+  cbn. intros. subst. now apply H.
+Qed.
+
 Lemma itr_unfold_l `{laws} `{KA ≪ l} :
   forall (n : ob X) (x : X n n), x^+ ≡ x + x⋅x^+.
 Proof.

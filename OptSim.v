@@ -72,7 +72,7 @@ Qed.
 
 (* Simulation game for tau transitions *)
 
-Variant TauAnswer (R : relation St) Rdiv s' t : Prop :=
+Variant TauAnswer (R Rdiv : relation St) s' t : Prop :=
 | tau_exact t' (TR : trans tau t t') (SIM : R s' t')
 | tau_freeze (_ : freeze = SimOpt.freeze) (SIM : R s' t)
 | tau_div (_ : freeze = SimOpt.freeze_div) (SIM : R s' t) (DIV : Rdiv s' t)
@@ -548,8 +548,6 @@ Proof.
   - intros. apply H1. eapply sim_inv_tau_l; eauto.
 Qed.
 
-Definition epsilon s s' := forall l t, trans l s' t -> trans l s t.
-
 Lemma simF_epsilon_l :
   forall R s S' t (Hstuck : extrans s),
   (forall l t, trans l s t -> exists s', S' s' /\ trans l s' t) ->
@@ -582,7 +580,7 @@ Proof.
 Qed.
 
 Lemma upto_epsilon_r :
-  forall (R : Chain simF) b s t t' (Hstuck : extrans s),
+  forall (R : Chain simF) b s t t' (Hstuck : lock = SimOpt.nolock \/ extrans t'),
   (*(forall l t, trans l s t -> exists s', S' s' /\ trans l s' t) ->*)
   epsilon t t' ->
   `R b s t' ->
@@ -593,22 +591,22 @@ Proof.
   }
   clear R. intros R **.
   destruct b. 2: {
-    apply simF_equiv in H1. induction H1.
+    apply simF_equiv in H1. clear Hstuck. induction H1.
     do 2 constructor. intros ??.
     apply H1 in H2 as []; esim.
     destruct DIV. apply dtau_div.
-    apply simF_equiv. apply H3; auto. admit.
+    apply simF_equiv. apply H3; auto.
   }
   apply simF_equiv in H1. apply simF_equiv. repeat split; intros.
   - apply H1 in H2 as []; esim.
     esplit; eauto.
-    admit.
+    eapply epsilon_dtrans; eauto.
   - apply H1 in H2 as []; esim.
-    + apply tau_freeze; auto. eapply H; eauto. admit.
-    + apply tau_div'; auto. intro. eapply H; eauto. admit.
-      now destruct b.
-Admitted.
-
+    eapply tau_delay; eauto. eapply epsilon_plus; eauto.
+  - destruct H1 as (_ & _ & []); esim.
+    red. destruct Hstuck; auto.
+    right. intro. eapply epsilon_can_be_stuck; eauto.
+Qed.
 
 Lemma lockpres_sim_r :
   forall s t u, lockpres s t -> sim true t u ->
@@ -652,6 +650,14 @@ Proof.
   - apply dtau_div. apply simF_equiv. apply DIV; auto.
 Qed.
 
+Lemma divpres_case : forall s t,
+  sim false s t ->
+  nodiv s \/ diverges t.
+Proof.
+  intros. destruct (Classical.diverges_lem s).
+  - apply divpres_impl in H; auto.
+  - auto.
+Qed.
 
 (* Top-level transitivity *)
 
