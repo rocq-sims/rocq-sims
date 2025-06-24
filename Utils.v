@@ -96,6 +96,22 @@ Proof.
   Unshelve. apply proper_sym_impl_iff_2; typeclasses eauto.
 Qed.
 
+Lemma srel_str_ind_r' {E : EqType} :
+  forall (i : srel E E) (P : E -> E -> Prop),
+  Proper (E.(Eq) ==> E.(Eq) ==> impl) P ->
+  (forall s t, E.(Eq) s t -> P s t) ->
+  (forall s t u, P s t -> i t u -> P s u) ->
+  forall s t, i^* s t -> P s t.
+Proof.
+  intros.
+  eset (P' := {| hrel_of := fun s t => P s t|} : srel E E).
+  epose proof (str_ind_r1 (X := srel_monoid_ops)). specialize (H3 E i P'). cbn in H3. eapply H3.
+  - intros. now apply H0.
+  - intros. red in H4. destruct H4. eapply H1; eauto.
+  - apply H2.
+  Unshelve. apply proper_sym_impl_iff_2; typeclasses eauto.
+Qed.
+
 Lemma srel_itr_ind_l' {E : EqType} :
   forall (i : srel E E) (P : E -> E -> Prop),
   Proper (E.(Eq) ==> E.(Eq) ==> impl) P ->

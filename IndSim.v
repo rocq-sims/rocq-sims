@@ -89,6 +89,14 @@ Qed.
 
 Definition isim := gfp isimF.
 
+Lemma tau_idiv : forall (R : Chain isimF) s' t,
+  freeze = SimOpt.freeze_div ->
+  isimF `R s' t ->
+  TauAnswer freeze delay `R (simInd `R) s' t.
+Proof.
+  intros. apply tau_div; auto. now step.
+Qed.
+
 Theorem sim_indsim : forall s t ,
   isim s t ->
   sim freeze lock delay true s t.
