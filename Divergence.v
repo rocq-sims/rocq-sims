@@ -224,6 +224,17 @@ Proof.
   eleft; eauto.
 Qed.
 
+Lemma nodiv_divpres :
+  forall s t, nodiv s -> divpres s t.
+Proof.
+  red. intros. induction H.
+  apply (gfp_fp divpresF).
+  constructor. red. intros.
+  apply H0 in H1.
+  apply dtau_div.
+  apply (gfp_fp divpresF) in H1. apply H1.
+Qed.
+
 End WithLTS.
 
 Module Classical.
@@ -261,6 +272,19 @@ Proof.
     destruct H3 as (o & s' & ?). exists o, s'.
     destruct H3. esplit; eauto. rewrite str_unfold_l. right.
     esplit; eauto.
+Qed.
+
+Theorem divpres_equiv {lts : LTS} : forall (s t : lts.(St)),
+  divpres s t <->
+  (diverges s -> diverges t).
+Proof.
+  split. { apply divpres_impl. }
+  intros.
+  destruct (diverges_lem t).
+  { now apply diverges_divpres. }
+  destruct (diverges_lem s).
+  - apply H in H1. now apply diverges_divpres.
+  - now apply nodiv_divpres.
 Qed.
 
 End Classical.
