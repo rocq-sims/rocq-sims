@@ -979,7 +979,7 @@ Proof.
     apply simF_equiv in H0. apply H0 in TR. destruct TR; esim.
 Qed.
 
-Theorem upto_sim_r_obs :
+Theorem upto_trans_r_obs :
   forall freeze lock delay (R : Chain (simF freeze lock delay)) s t t'
     (OBS : Transitive Robs) (Hobs : is_obs_state s),
   `R true s t' ->
@@ -1001,7 +1001,7 @@ Proof.
     eapply lockpres_sim_r in H0; eauto.
 Qed.
 
-Theorem upto_sim_r :
+Theorem upto_trans_r :
   forall freeze lock delay (R : Chain (simF freeze lock delay)) s t t'
     (OBS : Transitive Robs),
   `R true s t' ->
@@ -1077,7 +1077,7 @@ Proof.
   right. intro. apply H in H1. now destruct H1 as [|[? _]]; auto.
 Qed.
 
-Theorem upto_sim_l_obs :
+Theorem upto_trans_l_obs :
   forall freeze lock delay (R : Chain (simF freeze lock delay)) s s' t
     (OBS : Transitive Robs),
   forall (Hobs : is_obs_state s) (Hobs' : is_obs_state s'),
@@ -1108,7 +1108,7 @@ Proof.
     eapply lockpres_trans_nodelay_r; eauto. eapply lockpres_obs_state_r; eauto.
 Qed.
 
-Theorem upto_sim_l :
+Theorem upto_trans_l :
   forall freeze lock delay (R : Chain (simF freeze lock delay)) s s' t
     (OBS : Transitive Robs),
   `R true s' t ->
@@ -1146,6 +1146,28 @@ Proof.
       discriminate.
   - destruct H0 as (_ & _ & ?), H1 as (_ & _ & ?); auto.
     eapply lockpres_trans_nodelay_r; eauto.
+Qed.
+
+Theorem upto_trans :
+  forall lock (R : Chain (simF SimOpt.nofreeze lock SimOpt.nodelay)) s t u
+    (OBS : Transitive Robs),
+  `R true s t ->
+  `R true t u ->
+  `R true s u.
+Proof.
+  intros ??. apply tower. {
+    intros ??????????. eapply H; eauto.
+  }
+  clear R. intros R **.
+  apply simF_equiv in H0, H1. apply simF_equiv.
+  repeat split; intros.
+  - apply H0 in H2 as [].
+    apply H1 in TR as [].
+    econstructor; eauto. etransitivity; eauto.
+  - apply H0 in H2 as []; try easy.
+    apply H1 in TR as []; try easy.
+    esim.
+  - eapply lockpres_trans_nodelay_r. apply H0. apply H1.
 Qed.
 
 End WithLTS.
