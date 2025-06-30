@@ -517,19 +517,21 @@ Qed.
 
 End ProofSystem.
 
-(* TODO upto *)
-Theorem sim_iterS :
-  forall {E B X Y} freeze lock delay (TMP : freeze <> SimOpt.freeze_div \/ delay = SimOpt.delay),
-  Proper (pwr (sim (lts := @lts E B (X + Y)) freeze lock delay true) ==> eq ==> sim (lts := lts) freeze lock delay true) CTree.iterS.
+Theorem upto_iterS :
+  forall {E B X Y} freeze lock delay (TMP : freeze <> SimOpt.freeze_div \/ delay = SimOpt.delay) (R : Chain (simF (lts := lts) freeze lock delay)),
+  Proper (pwr (sim (lts := @lts E B (X + Y)) freeze lock delay true) ==> eq ==> `R true) CTree.iterS.
 Proof.
-  cbn. intros ???????. red. coinduction R CH. intros. subst.
+  cbn. intros ?????????. apply tower. {
+    intros ??????????. apply H; auto.
+  }
+  clear R. intros R **. subst.
   rewrite !unfold_iterS.
   apply upto_bind; auto.
   - right. intros [].
     + apply extrans_step.
     + apply extrans_ret.
   - intros [].
-    + apply c_step. apply CH; auto.
+    + apply c_step. apply H; auto.
     + apply c_ret.
 Qed.
 
