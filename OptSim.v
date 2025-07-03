@@ -1149,13 +1149,14 @@ Proof.
 Qed.
 
 Theorem upto_trans :
-  forall lock (R : Chain (simF SimOpt.nofreeze lock SimOpt.nodelay)) s t u
+  forall freeze lock (Hfreeze : freeze <> SimOpt.freeze_div)
+    (R : Chain (simF freeze lock SimOpt.nodelay)) s t u
     (OBS : Transitive Robs),
   `R true s t ->
   `R true t u ->
   `R true s u.
 Proof.
-  intros ??. apply tower. {
+  intros ????. apply tower. {
     intros ??????????. eapply H; eauto.
   }
   clear R. intros R **.
@@ -1165,8 +1166,11 @@ Proof.
     apply H1 in TR as [].
     econstructor; eauto. etransitivity; eauto.
   - apply H0 in H2 as []; try easy.
-    apply H1 in TR as []; try easy.
-    esim.
+    + apply H1 in TR as []; try easy.
+      * eapply tau_exact; eauto.
+      * esim.
+    + eapply tau_freeze; eauto. eapply H; eauto.
+      now apply (b_chain R), simF_equiv.
   - eapply lockpres_trans_nodelay_r. apply H0. apply H1.
 Qed.
 
