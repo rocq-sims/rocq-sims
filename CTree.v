@@ -433,6 +433,13 @@ Section extrans.
 Context {E B : Type -> Type}.
 Context {X : Type}.
 
+Lemma extrans_vis :
+  forall Y e (k : Y -> ctree E B X) (y : Y),
+  extrans (lts := lts) (Vis e k).
+Proof.
+  intros. eapply trans_intro with (l := obs (oobs e y)). apply trans_vis.
+Qed.
+
 Lemma extrans_step :
   forall (t : ctree E B X),
   extrans (lts := lts) (Step t).
@@ -484,16 +491,27 @@ Proof.
   - red. right. intro. exfalso. apply H0. apply extrans_step.
 Qed.
 
-(* TODO just R *)
 Lemma c_step_l' (Hfreeze : freeze = SimOpt.freeze_div) :
-  simF `R true t u ->
-  simF `R true (Step t) u.
+  `R true t u ->
+  `R true (Step t) u.
 Proof.
   intros. subst. eapply upto_tau_l.
   - red. intros. cbn in H0. apply trans_step_inv in H0 as [_ ?].
     now destruct l as [[] |].
   - right. apply extrans_step.
   - intros. cbn in H0. inv_trans. apply H.
+Qed.
+
+Lemma c_step_l'' (Hfreeze : freeze = SimOpt.freeze_div) :
+  `R true t u ->
+  divpres (lts := lts) t u ->
+  simF `R true (Step t) u.
+Proof.
+  intros. subst. apply simF_equiv. repeat split; intros.
+  - cbn in H1. inv_trans. now destruct o.
+  - cbn in H1. inv_trans. apply tau_div; auto.
+    apply (gfp_chain R). now apply sim_f_divpres.
+  - right. intro. exfalso. apply H1. apply extrans_step.
 Qed.
 
 Lemma c_step_r (Hdelay : delay = SimOpt.delay) :
@@ -513,6 +531,24 @@ Proof.
   - cbn in H0. destruct o; inv_trans.
   - cbn in H0. inv_trans. eapply tau_exact; eauto. cbn. etrans.
   - red. right. intro. exfalso. apply H0. apply extrans_step.
+Qed.
+
+Lemma c_vis :
+  forall Y e (k k' : Y -> ctree E B X),
+  (forall x, `R true (k x) (k' x)) ->
+  simF `R true (Vis e k) (Vis e k').
+Proof.
+  intros. apply simF_equiv. repeat split; intros.
+  - cbn in H0. inv_trans. destruct o; try easy.
+    apply obs_eq_invT in EQl as ?. subst.
+    apply obs_eq_inv in EQl as [-> ->].
+    econstructor; eauto.
+    + apply trans_dtrans. apply trans_vis.
+    + now apply itr_ext_hrel.
+  - cbn in H0. inv_trans.
+  - right. intro. left. intro.
+    destruct H1. cbn in H1. inv_trans.
+    apply H0. now apply extrans_vis.
 Qed.
 
 End ProofSystem.

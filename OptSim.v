@@ -390,6 +390,22 @@ Proof.
   eleft; eauto.
 Qed.
 
+Lemma sim_f_divpres :
+  forall s t, divpres s t <-> sim false s t.
+Proof.
+  split; revert s t; red; coinduction R CH; intros.
+  - apply (gfp_fp divpresF) in H.
+    induction H. apply simF_equiv. constructor.
+    intros ??. apply H in H0 as []; esim.
+    apply dtau_div. eapply (Hbody divpresF).
+    cbn. apply CH. apply DIV.
+  - apply (gfp_fp simF) in H.
+    apply simF_equiv in H. induction H. constructor.
+    intros ??. apply H in H0 as []; esim.
+    apply dtau_div. eapply (Hbody divpresF).
+    cbn. apply CH. apply DIV.
+Qed.
+
 
 (* Divergence-sensitive simulation implies divergence preservation *)
 
