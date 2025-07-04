@@ -550,39 +550,41 @@ Proof.
 Qed.
 
 Lemma simF_epsilon_l :
-  forall R s S' t (Hstuck : extrans s),
+  forall R s S' t (Hstuck : lock = SimOpt.nolock \/ exists s', S' s' /\ epsilon s s'),
   (forall l t, trans l s t -> exists s', S' s' /\ trans l s' t) ->
-  ((*forall l s' t, S' s' -> trans l s' t -> trans l s t*)True) ->
-  (forall s', S' s' -> simF R true s t) ->
+  (forall s', S' s' -> simF R true s' t) ->
   simF R true s t.
 Proof.
   intros. apply simF_equiv. repeat split; intros.
-  - apply H in H2 as ?. destruct H3 as (? & ? & ?).
-    apply H1 in H3 as ?. apply simF_equiv in H5. apply H5.
-    apply H2.
-  - apply H in H2 as ?. destruct H3 as (? & ? & ?).
-    apply H1 in H3 as ?. apply simF_equiv in H5. apply H5.
-    apply H2.
-  - right. esim.
+  - apply H in H1 as ?. destruct H2 as (? & ? & ?).
+    apply H0 in H2 as ?. apply simF_equiv in H4. apply H4.
+    apply H3.
+  - apply H in H1 as ?. destruct H2 as (? & ? & ?).
+    apply H0 in H2 as ?. apply simF_equiv in H4. apply H4.
+    apply H3.
+  - destruct Hstuck; esim.
+    destruct H1 as (? & ? & ?).
+    apply H0, simF_equiv in H1 as (_ & _ & ?).
+    red. destruct H1; auto.
+    right. intros. apply H1. intros [].
+    apply H2 in H4. esim.
 Qed.
 
 Lemma upto_epsilon_l :
-  forall (R : Chain simF) s S' t (Hstuck : extrans s),
+  forall (R : Chain simF) s S' t (Hstuck : lock = SimOpt.nolock \/ exists s', S' s' /\ epsilon s s'),
   (forall l t, trans l s t -> exists s', S' s' /\ trans l s' t) ->
-  ((*forall l s' t, S' s' -> trans l s' t -> trans l s t*)True) ->
-  (forall s', S' s' -> `R true s t) ->
+  (forall s', S' s' -> `R true s' t) ->
   `R true s t.
 Proof.
   intro. apply tower. {
-    intros ???????????. eapply H; eauto.
-    intros. apply leq_infx in H3. apply H3. eauto.
+    intros ??????????. eapply H; eauto.
+    intros. apply leq_infx in H2. apply H2. eauto.
   }
   clear R. intros R **. eapply simF_epsilon_l; eauto.
 Qed.
 
 Lemma upto_epsilon_r :
-  forall (R : Chain simF) b s t t' (Hstuck : lock = SimOpt.nolock \/ extrans t'),
-  (*(forall l t, trans l s t -> exists s', S' s' /\ trans l s' t) ->*)
+  forall (R : Chain simF) b s t t' (Hstuck : (freeze = SimOpt.nofreeze /\ extrans s) \/ lock = SimOpt.nolock \/ extrans t'),
   epsilon t t' ->
   `R b s t' ->
   `R b s t.
@@ -602,11 +604,13 @@ Proof.
   - apply H1 in H2 as []; esim.
     esplit; eauto.
     eapply epsilon_dtrans; eauto.
-  - apply H1 in H2 as []; esim.
-    eapply tau_delay; eauto. eapply epsilon_plus; eauto.
+  - apply H1 in H2 as []; destruct Hstuck as [[-> ?]|];
+      try discriminate;
+      eauto 6 using epsilon_plus with optsim.
   - destruct H1 as (_ & _ & []); esim.
-    red. destruct Hstuck; auto.
-    right. intro. eapply epsilon_can_be_stuck; eauto.
+    red. destruct Hstuck as [|[|]]; auto.
+    + destruct H2. esim.
+    + right. intro. eapply epsilon_can_be_stuck; eauto.
 Qed.
 
 Lemma lockpres_sim_r :

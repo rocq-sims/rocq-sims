@@ -480,6 +480,31 @@ Proof.
   - right. intro. exfalso. apply H. apply extrans_ret.
 Qed.
 
+Lemma c_br_l :
+  forall Y (b : B Y) k (Hstuck : lock = SimOpt.nolock \/ exists y : Y, True),
+  (forall x, `R true (k x) u) ->
+  `R true (Br b k) u.
+Proof.
+  intros. eapply upto_epsilon_l with (S' := fun t => exists x, t = k x).
+  - destruct Hstuck as [|[]]; auto.
+    right. exists (k x). split; eauto.
+    apply epsilon_correct. eapply epsilon_Br. reflexivity.
+  - intros. cbn in H0. inv_trans.
+    eauto.
+  - intros. destruct H0. subst. eauto.
+Qed.
+
+Lemma c_br_r :
+  forall Y (b : B Y) k x (Hstuck : lock = SimOpt.nolock \/ extrans (k x) \/ (freeze = SimOpt.nofreeze /\ extrans (lts := lts) t)),
+  `R true t (k x) ->
+  `R true t (Br b k).
+Proof.
+  intros. eapply upto_epsilon_r.
+  3: apply H.
+  - tauto.
+  - apply epsilon_correct. now eapply epsilon_Br.
+Qed.
+
 Lemma c_step_l (Hfreeze : freeze = SimOpt.freeze) :
   `R true t u ->
   simF `R true (Step t) u.
