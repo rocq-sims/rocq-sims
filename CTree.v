@@ -8,7 +8,7 @@ From RelationAlgebra Require Import
      rewriting
      normalisation
      monoid.
-From CTree Require Import CTree Eq Eq.Epsilon.
+From CTree Require Import CTree Eq Eq.Epsilon Eq.IterFacts.
 From OptSim Require Import (*Trace*) Utils LTS Divergence OptSim.
 
 Import CoindNotations.
@@ -149,7 +149,7 @@ Proof.
     + eapply tau_exact; try eassumption. eapply trans_bind_r.
       apply TR. apply TR0.
     + apply tau_freeze; auto.
-      eapply upto_epsilon_r. auto. 3: apply SIM0.
+      eapply upto_epsilon_r. 3: apply SIM0.
       { destruct Hlock; auto. }
       apply epsilon_correct. eapply epsilon_bind_ret.
       now apply trans_val_epsilon in TR as [].
@@ -341,7 +341,7 @@ Qed.
 Lemma upto_bind E B X Y freeze lock delay (TMP : freeze <> SimOpt.freeze_div \/ delay = SimOpt.delay) : forall
   (R : Chain (simF (lts := lts) freeze lock delay))
   (t t' : ctree E B X) (k k' : X -> ctree E B Y)
-  (Hlock : lock = SimOpt.nolock \/ forall x, extrans (lts := lts) (k' x)),
+  (Hlock : lock = SimOpt.nolock \/ forall x, extrans (lts := lts) (k x) /\ extrans (lts := lts) (k' x)),
   (sim (lts := lts) freeze lock delay true t t') ->
   (forall x, `R true (k x) (k' x)) ->
   `R true (CTree.bind t k) (CTree.bind t' k').
@@ -387,11 +387,14 @@ Proof.
         apply H; auto. intros. step. apply H1.
     + (* transition from k *)
       apply sim_fp in H0.
-      eapply TauAnswer_bind_r. auto.
+      eapply TauAnswer_bind_r.
+      * destruct Hlock; auto.
+        right. intro. apply H4.
       * lapply (proj1 H0 (oval x) Stuck). 2: { apply H2. }
         intros. eapply ObsAnswer_mon; eauto. cbn. auto.
       * specialize (H1 x). apply simF_equiv in H1. apply (proj1 (proj2 H1) s'). apply H3.
-  - red. destruct Hlock; auto.
+  - (* deadlock preservation *)
+    red. destruct Hlock; auto.
     apply sim_fp in H0 as ?. destruct H3 as (_ & _ & []); auto.
     destruct lock; auto.
     right. intro. red.
@@ -417,16 +420,8 @@ Proof.
       * apply Classical_Prop.NNPP in H5.
         destruct H5.
         apply H4 in H5 as ?. destruct H6 as (? & ? & ?). subst. subs.
-        apply sim_fp in H0. apply H4 in H5 as ?.
-        apply H0 in H5 as []. apply itr_sim in SIM. 2: typeclasses eauto. cbn in OBS. subst.
-        specialize (H1 x). apply simF_equiv in H1 as (_ & _ & ?).
-        destruct H1; try easy. apply H1 in H6.
-        (* TODO dtrans *)
-        assert (forall l t'', dtrans (lts := lts) delay l (CTree.bind t' k') t'' -> False).
-        intros. (* TODO dtrans_bind_inv *) Search "bind" "inv". (* note transs_bind_l *)
-Admitted.
-
-From CTree.Eq Require Import IterFacts.
+        apply sim_fp in H0. apply H4 in H5 as ?. exfalso. apply H6, H2.
+Qed.
 
 Section extrans.
 
@@ -466,11 +461,22 @@ Context (R : Chain (simF (lts := @lts E B X) freeze lock delay)).
 Context (t u : ctree E B X).
 Notation simF := (simF (lts := @lts E B X) freeze lock delay).
 
+Lemma c_stuck :
+  is_stuck (lts := lts) t /\ (lock = SimOpt.nolock \/ is_stuck (lts := lts) u) ->
+  `R true t u.
+Proof.
+  intros []. step.
+  apply simF_equiv. repeat split; intros; esim.
+  red. destruct H0; auto.
+  right. intros _.
+  now apply is_stuck_can_be_stuck.
+Qed.
+
 Lemma c_ret :
   forall v,
-  simF `R true (Ret v) (Ret v).
+  `R true (Ret v) (Ret v).
 Proof.
-  intros. apply simF_equiv. repeat split; intros.
+  intros. step. apply simF_equiv. repeat split; intros.
   - cbn in H. destruct o; inv_trans.
     apply val_eq_invT in EQl as ?. subst.
     apply val_eq_inv in EQl as ->.
@@ -540,8 +546,8 @@ Proof.
 Qed.
 
 Lemma c_step_r (Hdelay : delay = SimOpt.delay) :
-  simF `R true t u ->
-  simF `R true t (Step u).
+  `R true t u ->
+  `R true t (Step u).
 Proof.
   intros. eapply upto_tau_r. auto.
   rewrite <- str_ext. apply trans_step.
@@ -556,6 +562,23 @@ Proof.
   - cbn in H0. destruct o; inv_trans.
   - cbn in H0. inv_trans. eapply tau_exact; eauto. cbn. etrans.
   - red. right. intro. exfalso. apply H0. apply extrans_step.
+Qed.
+
+Lemma c_vis_l :
+  forall Y e (k : Y -> ctree E B X)
+    (Hdelay : delay = SimOpt.delay) (Hstuck : lock = SimOpt.nolock \/ exists y : Y, (True : Prop)),
+  (forall x, exists k', (trans (lts := lts) tau)^* u (Vis e k') /\ `R true (k x) (k' x)) ->
+  simF `R true (Vis e k) u.
+Proof.
+  intros. apply simF_equiv. repeat split; intros.
+  - cbn in H0. destruct o; inv_trans. subst.
+    destruct (H x0) as (? & ? & ?).
+    econstructor. 3: reflexivity.
+    + red. esplit. apply H0. apply trans_vis.
+    + now apply itr_ext_hrel.
+  - cbn in H0. inv_trans.
+  - red. destruct Hstuck as [|[]]; auto.
+    right. intro. exfalso. apply H1. now apply extrans_vis.
 Qed.
 
 Lemma c_vis :
@@ -589,34 +612,9 @@ Proof.
   rewrite !unfold_iterS.
   apply upto_bind; auto.
   - right. intros [].
-    + apply extrans_step.
-    + apply extrans_ret.
+    + split; apply extrans_step.
+    + split; apply extrans_ret.
   - intros [].
     + apply c_step. apply H; auto.
     + apply c_ret.
 Qed.
-
-Unset Universe Checking.
-From CTree.Interp Require Import FoldStateT.
-From CTree.Misc Require Import Head.
-
-(*Definition interpS_state {E F B C X S} `{B -< C} (h : E ~> Monads.stateT S (ctree F C)) (t : ctree E B X) (s : S) :
-  ctree F C (S * X) :=
-  CTree.iter (fun t =>
-          match observe t with
-          | RetF r => Ret (inr (s, r))
-          | StuckF => Stuck
-          | GuardF t => Ret (inl t)
-          | StepF t => Step (Ret (inl t))
-          | BrF c k => br c (fun xs => Ret (inl (k xs)))
-          | VisF e k => CTree.bind (h _ e s) (fun '(s, x) => Step (Ret (inl (k x))))
-          end) t.*)
-Definition interpS_state {E F B C X S} `{B -< C} (h : E ~> Monads.stateT S (ctree F C)) (t : ctree E B X) (s : S) :
-  ctree F C (S * X) :=
-  CTree.iter (fun t =>
-    CTree.bind (head t : ctree F C (@haction E B X)) (fun a =>
-      match a with
-      | ARet r => Ret (inr (s, r))
-      | AStep t => Step (Ret (inl t))
-      | AVis e k => CTree.bind (h _ e s) (fun '(s, x) => Step (Ret (inl (k x))))
-      end)) t.
