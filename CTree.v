@@ -322,7 +322,7 @@ Proof.
   - intros []. eapply H. apply H0.
 Qed.
 
-Lemma upto_bind E B X Y freeze lock delay (TMP : freeze <> SimOpt.freeze_div \/ delay = SimOpt.delay) : forall
+Theorem upto_bind E B X Y freeze lock delay (TMP : freeze <> SimOpt.freeze_div \/ delay = SimOpt.delay) : forall
   (R : Chain (simF (lts := lts) freeze lock delay))
   (t t' : ctree E B X) (k k' : X -> ctree E B Y)
   (Hlock : lock = SimOpt.nolock \/ forall x, extrans (lts := lts) (k x) /\ extrans (lts := lts) (k' x)),
