@@ -9,7 +9,7 @@ From RelationAlgebra Require Import
      normalisation
      monoid.
 From Coinduction Require Import all.
-From OptSim Require Import Utils LTS OptSim.
+From Sims Require Import Utils LTS Sims.
 
 Import CoindNotations.
 

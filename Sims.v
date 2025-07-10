@@ -10,7 +10,7 @@ From RelationAlgebra Require Import
      rewriting
      normalisation
      monoid.
-From OptSim Require Import Utils LTS Divergence.
+From Sims Require Import Utils LTS Divergence.
 
 Import CoindNotations.
 
@@ -113,26 +113,6 @@ Definition RL l l' :=
   | obs o, obs o' => Robs o o'
   | _, _ => False
   end.
-
-(*
-Definition sim_alt R s t :=
-  (forall l s', trans l s s' ->
-    match l with
-    | obs o => ObsAnswer R s' t o
-    | tau => TauAnswer R (simInd R) s' t
-    end) /\
-  (lock = SimOpt.nolock \/ (is_stuck s -> is_stuck t)).
-
-Lemma sim_alt_equiv : forall R s t, simInd R s t <-> sim_alt R s t.
-Proof.
-  split; intro.
-  - destruct H as [(? & ? & ?)].
-    split; auto. intros.
-    destruct l; auto.
-  - destruct H. repeat split; auto; intros.
-    + now apply H in H1.
-    + now apply H in H1.
-Qed.*)
 
 Definition lockpres (s t : St) :=
   (lock = SimOpt.nolock \/ (is_stuck s -> can_be_stuck t)).

@@ -9,7 +9,7 @@ From RelationAlgebra Require Import
      rewriting
      normalisation
      monoid.
-From OptSim Require Import Utils.
+From Sims Require Import Utils.
 
 Variant label {S : Type} := obs (s : S) | tau.
 

@@ -9,7 +9,7 @@ From RelationAlgebra Require Import
      normalisation
      monoid.
 From CTree Require Import CTree Eq.
-From OptSim Require Import Utils LTS Divergence OptSim IndSim CTree.
+From Sims Require Import Utils LTS Divergence Sims IndSim CTree.
 
 Import CoindNotations.
 Import CTreeNotations.

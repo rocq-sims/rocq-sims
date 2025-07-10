@@ -10,7 +10,7 @@ From RelationAlgebra Require Import
      rewriting
      normalisation
      monoid.
-From OptSim Require Import Utils LTS.
+From Sims Require Import Utils LTS.
 
 Import CoindNotations.
 

@@ -52,20 +52,6 @@ Proof.
     apply trans_bind_l; auto.
 Qed.
 
-(* WRONG because Br: k x is not necessarily visible *)
-Lemma taustar_bind_r : forall {E B X Y} (u : St (@lts E B Y)) (t : St (@lts E B X)) (k : X -> ctree E B Y) x,
-  (((trans tau)^*)⋅trans (lts := lts) (LTS.obs (oval x))) t Stuck ->
-  (trans (lts := lts) tau)^* (k x) u ->
-  (trans (lts := lts) tau)^* (CTree.bind t k) u.
-Proof.
-  (*intros. assert (wtrans τ (CTree.bind t k) u).
-  2: { now apply wtrans_τ. }
-  destruct H. eapply wtrans_bind_r'. eapply wconss. apply wtrans_τ. apply H. apply trans_wtrans. apply H1. Search pwtrans. eapply transs_bind
-  intros. revert H0. eapply srel_str_ind_r with (i := trans tau) (P := fun u => (trans (lts := lts) tau)^* (k x) u -> (trans (lts := lts) tau)^* (CTree.bind t k) u).
-  3: { rewrite <- str_refl. reflexivity. }
-  3: {*)
-Abort.
-
 Lemma dtrans_bind_r : forall {E B X Y} delay l (u : St (@lts E B Y)) (t : St (@lts E B X)) (k : X -> ctree E B Y) x,
   dtrans (lts := lts) delay (LTS.obs (oval x)) t Stuck ->
   dtrans (lts := lts) delay l (k x) u ->
