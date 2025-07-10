@@ -402,6 +402,13 @@ Proof.
   apply dtau_div. eapply simF_equiv. apply DIV.
 Qed.
 
+Lemma simF_f_divpres : forall (R : Chain simF) s t,
+  divpres s t ->
+  `R false s t.
+Proof.
+  intros. now apply (gfp_chain R), sim_f_divpres.
+Qed.
+
 Lemma sim_f_t : forall s t (Hfreeze : freeze = SimOpt.freeze_div),
   sim true s t ->
   sim false s t.

@@ -233,6 +233,34 @@ Proof.
   apply (gfp_fp divpresF) in H1. apply H1.
 Qed.
 
+Lemma divpresF_tau_r : forall (R : Chain divpresF) s t t',
+  `R s t' ->
+  (trans tau)^* t t' ->
+  `R s t.
+Proof.
+  intro. apply tower. {
+    intros ?????????. eapply H; eauto.
+  }
+  clear R. intros R **.
+  induction H0.
+  constructor. intros ??.
+  apply H0 in H2 as [].
+  - assert ((trans tau)^+ t t'). { rewrite itr_str_r. esplit; eassumption. }
+    rewrite itr_str_l in H2. destruct H2. esim.
+  - apply dtau_div. now apply DIV.
+Qed.
+
+Lemma dtau_plus : forall (R : Chain divpresF) Rind s' t t',
+  (trans tau)^+ t t' ->
+  `R s' t' ->
+  DTauAnswer `R Rind s' t.
+Proof.
+  intros.
+  rewrite itr_str_l in H. destruct H.
+  eapply dtau_match. apply H.
+  eapply divpresF_tau_r; eauto.
+Qed.
+
 End WithLTS.
 
 Module Classical.
