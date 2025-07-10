@@ -15,8 +15,11 @@ From OptSim Require Import Utils LTS OptSim IndSim.
 Import CoindNotations.
 
 Variant free {S St} (tr : @label S -> srel St St) : label -> (option S * St) -> (option S * St) -> Prop :=
+(* insert a tau transition before observable transitions *)
 | ftr_pre o st st' : tr (obs o) st st' -> free tr tau (None, st) (Some o, st')
+(* then perform the actual observable transition *)
 | ftr_vis o st st' : St.(Eq) st st' -> free tr (obs o) (Some o, st) (None, st')
+(* keep tau transitions as is *)
 | ftr_tau st st' : tr tau st st' -> free tr tau (None, st) (None, st')
 .
 
@@ -25,7 +28,6 @@ Program Definition freesimize (lts : LTS) := {|
   St := {| type_of := (option lts.(Observable) * lts.(St))%type; Eq := fun '(b, st) '(b', st') => b = b' /\ lts.(St).(Eq) st st' |};
   trans := fun l => {| hrel_of := free lts.(trans) l |};
   Robs := lts.(Robs);
-  ub_state := fun _ => False
 |}.
 Next Obligation.
   constructor.
@@ -52,11 +54,8 @@ Notation Observable := lts.(Observable).
 Notation St := lts.(St).
 Notation trans := lts.(trans).
 Notation Robs := lts.(Robs).
-Notation ub_state := lts.(ub_state).
 Notation label := (@label Observable).
 
-(*Definition free_wf (st : St) := is_obs_state st \/ is_tau_state st.
-Context (lts_free_wf : forall st : St, free_wf st).*)
 Context (Robs_eq : Robs = eq).
 
 Variant isimIndF R Rind s t : Prop :=

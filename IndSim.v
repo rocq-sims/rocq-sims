@@ -21,9 +21,7 @@ Context (freeze : SimOpt.freeze_opt) (lock : SimOpt.lock_opt) (delay : SimOpt.de
 Notation Observable := lts.(Observable).
 Notation St := lts.(St).
 Notation trans := lts.(trans).
-(*Notation epsilon := lts.(epsilon).*)
 Notation Robs := lts.(Robs).
-Notation ub_state := lts.(ub_state).
 Notation label := (@label Observable).
 
 Definition simIndF R Rind s t :=

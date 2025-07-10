@@ -22,7 +22,6 @@ Notation Observable := lts.(Observable).
 Notation St := lts.(St).
 Notation trans := lts.(trans).
 Notation Robs := lts.(Robs).
-Notation ub_state := lts.(ub_state).
 Notation label := (@label Observable).
 
 Section SimDef.

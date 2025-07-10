@@ -86,7 +86,6 @@ Definition lts_sum (lts lts' : LTS) Robss := {|
   St := EqType_sum lts.(St) lts'.(St);
   trans := trans_sum lts lts';
   Robs := Robs_sum Robss;
-  ub_state := fun _ => False
 |}.
 
 (* LTS injection *)
@@ -395,7 +394,6 @@ Definition lts_sum3 (lts lts' lts'' : LTS) Robs12 Robs23 := {|
   St := EqType_sum (EqType_sum lts.(St) lts'.(St)) lts''.(St);
   trans := trans_sum (lts_sum lts lts' Robs12) lts'';
   Robs := Robs_sum3 Robs12 Robs23;
-  ub_state := fun _ => False
 |}.
 
 (*Definition lts_sum3 lts lts' lts'' Robs12 Robs23 :=

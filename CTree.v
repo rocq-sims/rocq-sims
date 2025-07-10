@@ -30,9 +30,7 @@ Program Definition lts {E B X} : LTS :=
   Observable := @olabel E;
   St := @SS E B X; (* FIXME heterogeneous ctrees *)
   LTS.trans := fun l => {| hrel_of := Trans.trans (clabel l) |};
-  (*epsilon := {| hrel_of := fun _ _ => False |};*)
   Robs := eq; (* FIXME heterogeneous relations *)
-  ub_state := fun _ => False
 |}.
 
 #[export] Instance Chain_simF_equ {E B X} freeze lock delay b : forall (R : Chain (simF (lts := lts) freeze lock delay)),

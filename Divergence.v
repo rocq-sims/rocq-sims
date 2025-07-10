@@ -20,9 +20,7 @@ Context {lts : LTS}.
 Notation Observable := lts.(Observable).
 Notation St := lts.(St).
 Notation trans := lts.(trans).
-(*Notation epsilon := lts.(epsilon).*)
 Notation Robs := lts.(Robs).
-Notation ub_state := lts.(ub_state).
 Notation label := (@label Observable).
 
 Program Definition divergesF : mon (St -> Prop) :=
