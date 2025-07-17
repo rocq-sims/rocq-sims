@@ -585,6 +585,21 @@ Qed.
 
 End ProofSystem.
 
+(* unfolding lemma missing in the ctrees lib *)
+
+Notation iterS_ step i :=
+  (CTree.bind (step%function i)
+   (fun lr => match lr with
+   | inl l => Step (CTree.iterS step l)
+   | inr r => Ret r
+   end))%ctree.
+
+Lemma unfold_iterS {E B R I} (step : I -> ctree E B (I + R)) i:
+        CTree.iterS step i ≅ iterS_ step i.
+Proof.
+        now step.
+Qed.
+
 Theorem upto_iterS :
   forall {E B X Y} freeze lock delay (TMP : freeze <> SimOpt.freeze_div \/ delay = SimOpt.delay) (R : Chain (simF (lts := lts) freeze lock delay)),
   Proper (pwr (sim (lts := @lts E B (X + Y)) freeze lock delay true) ==> eq ==> `R true) CTree.iterS.
