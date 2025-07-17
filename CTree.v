@@ -9,7 +9,7 @@ From RelationAlgebra Require Import
      normalisation
      monoid.
 From CTree Require Import CTree Eq Eq.Epsilon Eq.IterFacts.
-From OptSim Require Import (*Trace*) Utils LTS Divergence OptSim.
+From Sims Require Import Utils LTS Divergence Sims.
 
 Import CoindNotations.
 

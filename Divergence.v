@@ -122,8 +122,9 @@ Variant DTauAnswer (R Rind : relation St) s' t : Prop :=
 | dtau_match t' (TR : trans tau t t') (DIV : R s' t')
 | dtau_div (DIV : Rind s' t)
 .
-Hint Resolve dtau_match 2 : optsim.
-Hint Resolve dtau_div 3 : optsim.
+
+Hint Resolve dtau_match | 2 : optsim.
+Hint Resolve dtau_div | 3 : optsim.
 
 #[export] Instance DTauAnswer_eq R Rind :
   Proper (Eq St ==> Eq St ==> impl) R ->
@@ -315,8 +316,8 @@ Qed.
 
 End Classical.
 
-Hint Resolve dtau_match 2 : optsim.
-Hint Resolve dtau_div 3 : optsim.
+Hint Resolve dtau_match | 2 : optsim.
+Hint Resolve dtau_div | 3 : optsim.
 Hint Unfold divpresIndF : optsim.
 Hint Constructors divpresInd : optsim.
 Hint Resolve unfold_divpresF : optsim.
