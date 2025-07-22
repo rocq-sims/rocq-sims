@@ -2,7 +2,7 @@
 (using coq 0.7)
 (name coq-sims)
 
-(license "LGPLv3")
+(license "LGPL-3.0-or-later")
 (authors "Nicolas Chappe")
 (maintainers "Nicolas Chappe")
 
@@ -15,5 +15,11 @@
   (coq (>= 8.19.1))
   (coq-coinduction (>= 1.9))
   (coq-relation-algebra (>= 1.7))
-  (coq-ctree (>= 0.1)))
-)
+  (coq-ctree (>= 2.0)))
+ (tags (
+   "category:CS/Semantics and Compilation/Semantics"
+   "category:CS/Semantics and Compilation/Compilation"
+   "keyword:simulation"
+   "keyword:coinduction up-to"
+   "logpath:Sims"
+)))

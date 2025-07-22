@@ -1,3 +1,6 @@
+(* SPDX-FileCopyrightText: 2025 rocq-sims authors *)
+(* SPDX-License-Identifier: LGPL-3.0-or-later *)
+
 From Coinduction Require Import all.
 From RelationAlgebra Require Import
      kat

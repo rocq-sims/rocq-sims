@@ -1,3 +1,6 @@
+(* SPDX-FileCopyrightText: 2025 rocq-sims authors *)
+(* SPDX-License-Identifier: LGPL-3.0-or-later *)
+
 From RelationAlgebra Require Import
      kat
      kat_tac
