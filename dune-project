@@ -23,3 +23,16 @@
    "keyword:coinduction up-to"
    "logpath:Sims"
 )))
+
+(package
+ (name coq-sims-examples)
+ (version 0.1)
+ (depends
+  (coq-sims (= 0.1)))
+ (tags (
+   "category:CS/Semantics and Compilation/Semantics"
+   "category:CS/Semantics and Compilation/Compilation"
+   "keyword:simulation"
+   "keyword:coinduction up-to"
+   "logpath:Sims"
+)))

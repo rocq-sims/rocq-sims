@@ -8,7 +8,7 @@ documents this library.
 
 ## Theories
 
-Source files of our development are in `theories/`.
+Source files of our development are in `theories/`, except examples in `examples/`.
 
 - `LTS.v` defines LTSs
 - `Divergence.v` coinductively defines divergence and divergence preservation on LTSs

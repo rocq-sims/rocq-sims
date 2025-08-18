@@ -1,0 +1,6 @@
+(include_subdirs qualified)
+
+(coq.theory
+ (name SimsExamples)
+ (package coq-sims-examples)
+ (theories Sims))
