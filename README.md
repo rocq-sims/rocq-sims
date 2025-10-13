@@ -3,12 +3,12 @@
 This library defines various notions of simulation, and associated coinduction up-to principles,
 including a novel mutually coinductive characterization of divergence-sensitive weak simulation.
 
-The draft paper [*The Sims: A Family of Simulations for Verified Compilation*](https://www-verimag.imag.fr/~chappen/sims-draft-v1.pdf)
+The draft paper [*A Family of Sims with Diverging Interests*](https://www-verimag.imag.fr/~chappen/sims-draft-v1.pdf)
 documents this library.
 
 ## Theories
 
-Source files of our development are in `theories/`, except examples in `examples/`.
+Source files of the library are in `theories/`, and examples are in `examples/`.
 
 - `LTS.v` defines LTSs
 - `Divergence.v` coinductively defines divergence and divergence preservation on LTSs

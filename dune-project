@@ -34,5 +34,5 @@
    "category:CS/Semantics and Compilation/Compilation"
    "keyword:simulation"
    "keyword:coinduction up-to"
-   "logpath:Sims"
+   "logpath:SimsExamples"
 )))
