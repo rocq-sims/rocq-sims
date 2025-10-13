@@ -12,7 +12,7 @@
  (name coq-sims)
  (version 0.1)
  (depends
-  (coq (>= 8.19.1))
+  (coq (>= 8.20))
   (coq-coinduction (>= 1.9))
   (coq-relation-algebra (>= 1.7))
   (coq-ctree (>= 2.0)))

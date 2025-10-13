@@ -33,7 +33,7 @@ This library is released under the GNU Lesser General Public License 3.0, or any
 
 ## How to build
 
-This development mainly depends on Rocq >= 8.19 and the `coinduction` library.
+This development mainly depends on Rocq >= 8.20 and the `coinduction` library.
 The CTree instantiation depends on the CTree library. This is a global dependency for now.
 
 `opam install . --deps-only` builds the library, then `dune build` builds it.
