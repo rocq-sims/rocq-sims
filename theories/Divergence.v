@@ -290,6 +290,21 @@ Proof.
   destruct H; auto. apply NNPP in H; auto.
 Qed.
 
+Lemma trans_case {lts : LTS} :
+  forall (s : lts.(St)),
+  diverges s \/ can_be_stuck SimOpt.delay s \/ exists o s', ((trans tau)^*⋅(trans (obs o))) s s'.
+Proof.
+  intros. destruct (diverges_lem s); auto. right.
+  induction H. destruct (classic (is_stuck s)).
+  - left. now left.
+  - apply NNPP in H1. destruct H1. destruct l.
+    + right. exists s0, st'. now rewrite <- str_refl, dot1x.
+    + apply H0 in H1 as ?. destruct H2 as [| (? & ? & ?)].
+      * left. eapply can_be_stuck_taustar in H2; eauto. now rewrite <- str_ext.
+      * right. exists x, x0. destruct H2. esplit; eauto.
+        rewrite str_unfold_l. right. esplit; eauto.
+Qed.
+
 Lemma diverges_lem_extrans {lts : LTS} :
   forall (s : lts.(St)),
   (forall (s s' : lts.(St)), trans tau s s' -> extrans s') ->
