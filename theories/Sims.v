@@ -39,14 +39,14 @@ Notation dtrans := (@dtrans lts delay).
 Variant ObsAnswer (R : relation St) s' t o : Prop :=
 | ans_obs o' t' (TR : dtrans (obs o') t t') (SIM : R s' t') (OBS : Robs o o') : ObsAnswer R s' t o.
 
-Hint Constructors ObsAnswer : optsim.
+Hint Constructors ObsAnswer : sims.
 
 #[export] Instance ObsAnswer_eq : forall R,
   Proper (St.(Eq) ==> St.(Eq) ==> impl) R ->
   Proper (St.(Eq) ==> St.(Eq) ==> eq ==> impl) (ObsAnswer R).
 Proof.
   cbn. intros. subst.
-  destruct H3; rewrite ?H0, ?H1 in *; eauto with optsim.
+  destruct H3; rewrite ?H0, ?H1 in *; eauto with sims.
 Qed.
 
 #[export] Instance ObsAnswer_eq' R :
@@ -72,7 +72,7 @@ Variant TauAnswer (R Rdiv : relation St) s' t : Prop :=
 | tau_div (_ : freeze = SimOpt.freeze_div) (SIM : R s' t) (DIV : Rdiv s' t)
 | tau_delay t' (_ : delay = SimOpt.delay) (TR : (trans tau)^+ t t') (SIM : R s' t')
 .
-Hint Constructors TauAnswer : optsim.
+Hint Constructors TauAnswer : sims.
 
 #[export] Instance : forall R Rdiv,
   Proper (St.(Eq) ==> St.(Eq) ==> impl) R ->
@@ -80,7 +80,7 @@ Hint Constructors TauAnswer : optsim.
   Proper (St.(Eq) ==> St.(Eq) ==> impl) (TauAnswer R Rdiv).
 Proof.
   intros. cbn. intros.
-  destruct H3; rewrite ?H1, ?H2 in *; eauto with optsim.
+  destruct H3; rewrite ?H1, ?H2 in *; eauto with sims.
 Qed.
 
 Lemma tau_weak :
@@ -119,7 +119,7 @@ Definition RL l l' :=
 
 Definition lockpres (s t : St) :=
   (lock = SimOpt.nolock \/ (is_stuck s -> can_be_stuck t)).
-Hint Unfold lockpres : optsim.
+Hint Unfold lockpres : sims.
 
 Definition simGame (R : bool -> hrel St St) s t :=
   (forall o s', trans (obs o) s s' -> ObsAnswer ((R true)^+) s' t o) /\
@@ -212,7 +212,7 @@ Lemma simF_false : forall R s t,
 Proof.
   intros. now inversion H.
 Qed.
-Hint Resolve simF_false : optsim.
+Hint Resolve simF_false : sims.
 
 Lemma simF_true : forall R s t,
   simF R true s t ->
@@ -220,7 +220,7 @@ Lemma simF_true : forall R s t,
 Proof.
   intros. now inversion H.
 Qed.
-Hint Resolve simF_true : optsim.
+Hint Resolve simF_true : sims.
 
 Lemma simF_equiv : forall R s t,
   (simF R false s t <->
@@ -265,7 +265,7 @@ Variant SimAnswer (R Rdiv : relation St) s' t l : Prop :=
 | ans_div (_ : freeze = SimOpt.freeze_div) (SIM : R s' t) (DIV : Rdiv s' t) (LBL : l = tau)
 | ans_delay l' t' (_ : delay = SimOpt.delay) (TR : ((trans tau)^+ ⋅ trans l') t t') (SIM : R s' t') (LBL : RL l l')
 .
-Hint Constructors SimAnswer : optsim.
+Hint Constructors SimAnswer : sims.
 
 #[export] Instance : forall R Rind,
   Proper (St.(Eq) ==> St.(Eq) ==> iff) R ->
@@ -273,7 +273,7 @@ Hint Constructors SimAnswer : optsim.
   Proper (St.(Eq) ==> St.(Eq) ==> eq ==> flip impl) (SimAnswer R Rind).
 Proof.
   intros. cbn. intros. subst.
-  destruct H4; rewrite <- ?H1, <- ?H2 in *; eauto with optsim.
+  destruct H4; rewrite <- ?H1, <- ?H2 in *; eauto with sims.
 Qed.
 
 Definition sim_alt R s t :=
@@ -349,7 +349,7 @@ Proof.
   eapply dtau_match. apply H.
   eapply divpresF_tau_r; eauto.
 Qed.
-Hint Resolve dtau_plus : optsim.
+Hint Resolve dtau_plus : sims.
 
 Lemma divpres_impl : forall s t,
   sim false s t ->
@@ -476,8 +476,8 @@ Proof.
     apply H1 in H2 as [].
     * econstructor 4; eauto.
       rewrite itr_str_r. esplit; eauto.
-    * eapply tau_weak; eauto with optsim. typeclasses eauto.
-    * eapply tau_weak_div; eauto with optsim; typeclasses eauto.
+    * eapply tau_weak; eauto with sims. typeclasses eauto.
+    * eapply tau_weak_div; eauto with sims; typeclasses eauto.
     * econstructor 4; eauto.
       rewrite itr_str_r, <- str_trans, <- dotA, <- itr_str_r.
       esplit; eauto.
@@ -595,7 +595,7 @@ Proof.
     eapply epsilon_dtrans; eauto.
   - apply H1 in H2 as []; destruct Hstuck as [[-> ?]|];
       try discriminate;
-      eauto 6 using epsilon_plus with optsim.
+      eauto 6 using epsilon_plus with sims.
   - destruct H1 as (_ & _ & []); esim.
     red. destruct Hstuck as [|[|]]; auto.
     + destruct H2. esim.
@@ -785,11 +785,11 @@ Qed.
 
 End SimDef.
 
-Hint Constructors ObsAnswer : optsim.
-Hint Constructors TauAnswer : optsim.
-Hint Resolve dtau_plus : optsim.
-Hint Resolve simF_false : optsim.
-Hint Resolve simF_true : optsim.
+Hint Constructors ObsAnswer : sims.
+Hint Constructors TauAnswer : sims.
+Hint Resolve dtau_plus : sims.
+Hint Resolve simF_false : sims.
+Hint Resolve simF_true : sims.
 
 (* Comparison of the simulation options *)
 
@@ -1030,14 +1030,14 @@ Proof.
     apply H0 in H2 as []; esim.
   - apply H0 in H2 as []; auto.
     + (* tau_exact *) apply sim_fp in H1.
-      apply H1 in TR as ?. destruct H2; eauto with optsim.
+      apply H1 in TR as ?. destruct H2; eauto with sims.
       * (* freeze *) destruct freeze; try discriminate.
         apply tau_freeze; auto. eapply H; eauto.
       * (* freeze_div *) destruct freeze; discriminate.
     + (* tau_freeze *) subst freeze.
       eapply tau_freeze; eauto.
     + (* tau_div *) subst freeze.
-      eapply tau_div; eauto with optsim.
+      eapply tau_div; eauto with sims.
       eapply divpres_nofreeze_r; eauto.
     + (* tau_delay *)
       rewrite itr_str_r in TR. destruct TR as [t'1 TR1 TR2].
@@ -1045,7 +1045,7 @@ Proof.
       eapply sim_inv_taustar_l in H1; eauto.
       apply sim_fp in H1.
       apply H1 in TR2; auto.
-      destruct freeze; destruct TR2; try discriminate; eauto with optsim.
+      destruct freeze; destruct TR2; try discriminate; eauto with sims.
   - destruct H0 as (_ & _ & ?).
     eapply lockpres_sim_r in H0; eauto.
 Qed.
@@ -1111,7 +1111,7 @@ Proof.
       destruct TR as [TR | TR]. 2: { rewrite <- dotA in TR. destruct TR. now apply Hobs' in H2. }
       apply H0 in TR as []; esim.
     + apply itr_sim, (gfp_chain R) in SIM; auto.
-      apply H0 in TR; auto. destruct TR; eauto with optsim.
+      apply H0 in TR; auto. destruct TR; eauto with sims.
   - now apply Hobs in H2.
   - destruct H0 as (_ & _ & ?), H1 as (_ & _ & ?); auto.
     eapply lockpres_trans_nodelay_r; eauto. eapply lockpres_obs_state_r; eauto.
@@ -1136,17 +1136,17 @@ Proof.
   repeat split; intros; subst.
   - apply H1 in H2 as [].
     eapply itr_sim, sim_nodelay, (gfp_chain R) in SIM; auto.
-    apply H0 in TR; auto. destruct TR; eauto with optsim.
+    apply H0 in TR; auto. destruct TR; eauto with sims.
   - apply H1 in H2 as [].
     + (* tau_exact *)
-      apply H0 in TR as ?; auto. destruct H2; eauto with optsim.
+      apply H0 in TR as ?; auto. destruct H2; eauto with sims.
       (* freeze_div *) subst. apply tau_div; eauto.
       eapply divpres_trans_l with (t := t'). apply DIV. apply sim_f_t; auto.
       now apply sim_nodelay.
     + (* tau_freeze *) subst freeze.
       eapply tau_freeze; eauto. eapply H; eauto. apply (b_chain R). apply simF_equiv. apply H0.
     + (* tau_div *) subst freeze.
-      eapply tau_div; eauto with optsim.
+      eapply tau_div; eauto with sims.
       eapply H; eauto. apply (b_chain R). apply simF_equiv. apply H0.
       apply simF_equiv in H0; auto. eapply simF_f_t in H0. 2: discriminate.
       apply divpres_trans_l with (s := s'0) in H0; auto. apply sim_f_t; auto.
@@ -1185,8 +1185,8 @@ Qed.
 
 End WithLTS.
 
-Hint Constructors ObsAnswer : optsim.
-Hint Constructors TauAnswer : optsim.
-Hint Resolve dtau_plus : optsim.
-Hint Resolve simF_false : optsim.
-Hint Resolve simF_true : optsim.
+Hint Constructors ObsAnswer : sims.
+Hint Constructors TauAnswer : sims.
+Hint Resolve dtau_plus : sims.
+Hint Resolve simF_false : sims.
+Hint Resolve simF_true : sims.

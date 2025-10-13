@@ -126,8 +126,8 @@ Variant DTauAnswer (R Rind : relation St) s' t : Prop :=
 | dtau_div (DIV : Rind s' t)
 .
 
-Hint Resolve dtau_match | 2 : optsim.
-Hint Resolve dtau_div | 3 : optsim.
+Hint Resolve dtau_match | 2 : sims.
+Hint Resolve dtau_div | 3 : sims.
 
 #[export] Instance DTauAnswer_eq R Rind :
   Proper (Eq St ==> Eq St ==> impl) R ->
@@ -141,14 +141,14 @@ Qed.
 
 Definition divpresIndF R Rind s t :=
   forall s', trans tau s s' -> DTauAnswer R Rind s' t.
-Hint Unfold divpresIndF : optsim.
+Hint Unfold divpresIndF : sims.
 
 Section NoElim.
 #[local] Unset Elimination Schemes.
 Inductive divpresInd R s t : Prop :=
 | divpresI : divpresIndF R (divpresInd R) s t -> divpresInd R s t.
 End NoElim.
-Hint Constructors divpresInd : optsim.
+Hint Constructors divpresInd : sims.
 
 Definition divpresInd_ind :
   forall R P : St -> St -> Prop,
@@ -175,7 +175,7 @@ Lemma unfold_divpresF : forall R s t,
 Proof.
   auto.
 Qed.
-Hint Resolve unfold_divpresF : optsim.
+Hint Resolve unfold_divpresF : sims.
 
 #[export] Instance divpresF_eq R :
   Proper (Eq St ==> Eq St ==> impl) (divpresF R).
@@ -334,8 +334,8 @@ Qed.
 
 End Classical.
 
-Hint Resolve dtau_match | 2 : optsim.
-Hint Resolve dtau_div | 3 : optsim.
-Hint Unfold divpresIndF : optsim.
-Hint Constructors divpresInd : optsim.
-Hint Resolve unfold_divpresF : optsim.
+Hint Resolve dtau_match | 2 : sims.
+Hint Resolve dtau_div | 3 : sims.
+Hint Unfold divpresIndF : sims.
+Hint Constructors divpresInd : sims.
+Hint Resolve unfold_divpresF : sims.

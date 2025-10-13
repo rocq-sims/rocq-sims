@@ -73,11 +73,11 @@ Qed.
 
 Variant extrans (st : lts.(St)) : Prop :=
   trans_intro l st' : trans l st st' -> extrans st.
-Hint Constructors extrans : optsim.
+Hint Constructors extrans : sims.
 
 #[export] Instance : Proper (lts.(St).(Eq) ==> flip impl) extrans.
 Proof.
-  cbn. intros ??? []. rewrite <- H in H0. eauto with optsim.
+  cbn. intros ??? []. rewrite <- H in H0. eauto with sims.
 Qed.
 
 Definition is_stuck (st : lts.(St)) : Prop :=
@@ -95,7 +95,7 @@ Qed.
 
 Definition can_be_stuck s :=
   is_stuck s \/ (delay = SimOpt.delay /\ exists s', (trans tau)^* s s' /\ is_stuck s').
-Hint Unfold can_be_stuck : optsim.
+Hint Unfold can_be_stuck : sims.
 
 #[export] Instance : Proper (lts.(St).(Eq) ==> impl) can_be_stuck.
 Proof.
@@ -299,7 +299,7 @@ Lemma from_trans : forall (P : lts.(St) -> Prop) l st st',
 Proof.
   intros. apply (gfp_fp (fromF _)) in H as []. eapply H1; eauto.
 Qed.
-Hint Resolve from_trans : optsim.
+Hint Resolve from_trans : sims.
 
 Lemma from_taustar : forall (P : lts.(St) -> Prop) (P_Eq: Proper (lts.(St).(Eq) ==> impl) P) st st',
   From P st ->
@@ -332,14 +332,14 @@ Proof.
   intros. red. now rewrite <- itr_str_r.
 Qed.
 
-Hint Resolve is_tau_state_obs : optsim.
-Hint Resolve is_obs_state_tau : optsim.
+Hint Resolve is_tau_state_obs : sims.
+Hint Resolve is_obs_state_tau : sims.
 
-Hint Constructors extrans : optsim.
-Hint Unfold can_be_stuck : optsim.
+Hint Constructors extrans : sims.
+Hint Unfold can_be_stuck : sims.
 
-Hint Resolve trans_dtrans : optsim.
-(*Hint Resolve delay_trans_dtrans : optsim.*)
-Hint Resolve dtrans_trans : optsim.
+Hint Resolve trans_dtrans : sims.
+(*Hint Resolve delay_trans_dtrans : sims.*)
+Hint Resolve dtrans_trans : sims.
 
-Hint Resolve from_trans : optsim.
+Hint Resolve from_trans : sims.

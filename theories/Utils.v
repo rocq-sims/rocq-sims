@@ -14,8 +14,8 @@ From RelationAlgebra Require Import
 
 Hint Unfold car_of : core.
 
-Create HintDb optsim.
-#[global] Ltac esim := eauto 10 with optsim exfalso.
+Create HintDb sims.
+#[global] Ltac esim := eauto 10 with sims exfalso.
 
 (* RA lemmas *)
 
@@ -150,7 +150,7 @@ Proof.
   intros.
   pose proof itr_ext R. cbn in H0. apply H0. apply H.
 Qed.
-Hint Resolve itr_ext_hrel : optsim.
+Hint Resolve itr_ext_hrel : sims.
 
 #[export] Instance itr_eq X (Eq R : hrel X X) `(EQ : Equivalence _ Eq) :
   Proper (Eq ==> Eq ==> impl) R ->

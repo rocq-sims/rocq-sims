@@ -40,7 +40,7 @@ Variant utrans_ {lts} ubs : @label (option lts.(Observable)) -> St lts -> St lts
 (* UB states can take *any* transition to *any* state,
    including transitions labelled with 'None' that only appear in UB states. *)
 | utrans_ub_ l s t : ubs s -> utrans_ ubs l s t.
-Hint Constructors utrans_ : optsim.
+Hint Constructors utrans_ : sims.
 
 Obligation Tactic := idtac.
 Program Definition utrans {lts} ubs (Hubs : Proper (lts.(St).(Eq) ==> iff) ubs) l : srel lts.(St) lts.(St) :=
@@ -57,9 +57,9 @@ Next Obligation.
   - apply utrans_ub_. now rewrite H.
 Qed.
 
-Hint Unfold hrel_of : optsim.
-Hint Unfold trans : optsim.
-Hint Unfold utrans : optsim.
+Hint Unfold hrel_of : sims.
+Hint Unfold trans : sims.
+Hint Unfold utrans : sims.
 
 Definition ubify lts ubs Hubs : LTS := {|
   Observable := option lts.(Observable); (* None = UB *)
@@ -107,4 +107,4 @@ Qed.
 
 End WithLTS.
 
-Hint Constructors utrans_ : optsim.
+Hint Constructors utrans_ : sims.
