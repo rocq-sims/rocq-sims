@@ -19,12 +19,17 @@ Import CoindNotations.
 
 Section WithLTS.
 
-Definition RUB {lts} (R : relation lts.(Observable)) o o' :=
+Definition RUB {X} (R : relation X) o o' :=
   match o, o' with
   | Some o, Some o' => R o o'
   | _, None => True
   | _, _ => False
   end.
+
+#[export] Instance RUB_Reflexive X (R : relation X) : Reflexive R -> Reflexive (RUB R).
+Proof.
+  intros ? []. cbn. apply H. reflexivity.
+Qed.
 
 (* Transition relation in which states in the 'ubs' set are given UB semantics *)
 Variant utrans_ {lts} ubs : @label (option lts.(Observable)) -> St lts -> St lts -> Prop :=
@@ -63,4 +68,43 @@ Definition ubify lts ubs Hubs : LTS := {|
   Robs := RUB lts.(Robs);
 |}.
 
+Lemma ub_lockpres : forall {lts} lock st' st
+  ubs (Hubs : Proper (lts.(St).(Eq) ==> iff) ubs),
+  ubs st' ->
+  lockpres (lts := ubify lts ubs Hubs) lock SimOpt.delay st st'.
+Proof.
+  intros. destruct lock. 2: now left.
+  right. intro. right. split; auto.
+  exists st. split; auto. rewrite <- str_ext. now apply utrans_ub_.
+Qed.
+
+Lemma simF_ub_r : forall {lts} freeze lock delay (Hlock : lock = SimOpt.nolock \/ delay = SimOpt.delay)
+  ubs (Hubs : Proper (lts.(St).(Eq) ==> iff) ubs)
+  (R : Chain (simF freeze lock delay)) (REFL: Reflexive lts.(Robs)) st st',
+  ubs st' ->
+  simF (lts := ubify lts ubs Hubs) freeze lock delay `R true st st'.
+Proof.
+  intros. apply simF_equiv. repeat split; intros.
+  - eapply ans_obs with (o' := o) (t' := s').
+    + apply trans_dtrans. now apply utrans_ub_.
+    + apply itr_ext_hrel. reflexivity.
+    + reflexivity.
+  - eapply tau_exact with (t' := s'). now apply utrans_ub_. reflexivity.
+  - destruct Hlock; subst. now left. now apply ub_lockpres.
+Qed.
+
+Lemma ub_taustar : forall {lts} (st st' : lts.(St))
+  ubs (Hubs : Proper (lts.(St).(Eq) ==> iff) ubs),
+  (trans (lts := lts) tau)^* st st' ->
+  (trans (lts := ubify lts ubs Hubs) tau)^* st st'.
+Proof.
+  intros. revert H. intro. apply srel_str_ind_l' with (i := trans (lts := lts) tau) (P := fun st st' =>
+    (trans (lts := ubify lts ubs Hubs) tau)^* st st'); auto.
+  - cbn -[str]. intros. now rewrite <- H0, <- H1.
+  - intros. rewrite H0. now rewrite <- str_refl.
+  - intros. rewrite str_unfold_l. right. esplit. apply utrans_tau_. apply H0. apply H1.
+Qed.
+
 End WithLTS.
+
+Hint Constructors utrans_ : optsim.
