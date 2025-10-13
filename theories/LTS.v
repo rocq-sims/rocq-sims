@@ -29,36 +29,6 @@ Record LTS := {
 Arguments trans {lts} : rename.
 Arguments Robs {lts} : rename.
 
-(*Section LockLTS.
-
-  Context (lts : LTS).
-  Variant LockObservable := | Event (e : lts.(Observable)) | NoEvent.
-  Program Definition LockSt := {| type_of := (bool * lts.(St))%type |}.
-  Variant locktrans : @label LockObservable -> LockSt -> LockSt -> Prop :=
-  | locktrans_ev b o s t : lts.(trans) (obs o) s t -> locktrans (obs (Event o)) (b, s) (true, t)
-  | locktrans_noev s : (forall l t, lts.(trans) l s t -> False) -> locktrans (obs NoEvent) (true, s) (true, s)
-  .
-  Definition lockepsilon : LockSt -> LockSt -> Prop :=
-    fun '(b, s) '(b', s') =>
-    lts.(epsilon) s s' /\ (
-      (b = false /\ b' = false) \/
-      (b = true /\ b' = false) \/
-      (b = true /\ b' = true /\ forall l s'', lts.(trans) l s s'' -> False)
-    ).
-  Definition LockRobs : LockObservable -> LockObservable -> Prop. Admitted.
-  Definition lock_ub_state : LockSt -> Prop. Admitted.
-
-  Definition lock := {|
-    Observable := LockObservable;
-    St := LockSt;
-    trans := locktrans;
-    epsilon := lockepsilon;
-    Robs := LockRobs;
-    ub_state := lock_ub_state
-  |}.
-
-End LockLTS.*)
-
 Section LTS.
 
 Context {lts : LTS}.

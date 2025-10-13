@@ -234,7 +234,6 @@ Proof.
     eapply upto_taudet_l. apply UTR. clear UTR. red. red.
     simple eapply from_taustar in DET; eauto.
     simple eapply from_taustar in CONS; eauto. 2,3: typeclasses eauto.
-    (*assert (tgt = tgt') as -> by admit.*)
     clear TR.
     (* exploit label consistency to restrict the simulation game *)
     apply simF_equiv. repeat split; intros.
