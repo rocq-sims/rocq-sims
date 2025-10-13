@@ -19,6 +19,7 @@ Source files of our development are in `theories/`, except examples in `examples
 - `IndSim.v` compares our definition with (inductive-coinductive) normed simulation
 - `UB.v` defines an LTS transformer to augment a transition system with undefined behaviors
 - `LTSSum.v` defines the union of two LTSs and extends our transitivity result to simulation results on heterogeneous LTSs
+- `Determinism.v` establishes a CompCert-like forward => backward simulation result under some assumptions
 - `CTree.v` instantiates our theory on CTrees (section 5)
 - `IndSimCounterExample.v` contains an example of a simulation result that holds for mudiv-simulation but not for normed simulation
 
