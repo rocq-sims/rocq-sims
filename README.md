@@ -36,4 +36,5 @@ This library is released under the GNU Lesser General Public License 3.0, or any
 This development mainly depends on Rocq >= 8.20 and the `coinduction` library.
 The CTree instantiation depends on the CTree library. This is a global dependency for now.
 
-`opam install . --deps-only` builds the library, then `dune build` builds it.
+`dune build coq-sims.opam && opam install . --deps-only` installs the dependencies,
+then `dune build` builds the library.
