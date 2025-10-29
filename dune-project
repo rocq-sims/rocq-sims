@@ -5,11 +5,13 @@
 (license "LGPL-3.0-or-later")
 (authors "Nicolas Chappe")
 (maintainers "Nicolas Chappe")
+(source (github rocq-sims/rocq-sims))
 
 (generate_opam_files true)
 
 (package
  (name coq-sims)
+ (synopsis "A library of various strong and weak simulation relations")
  (version 0.1)
  (depends
   (coq (>= 8.20))
@@ -26,6 +28,7 @@
 
 (package
  (name coq-sims-examples)
+ (synopsis "Examples for rocq-sims library")
  (version 0.1)
  (depends
   (coq-sims (= 0.1)))
