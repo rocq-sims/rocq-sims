@@ -1,7 +1,8 @@
 # rocq-sims
 
-This library defines various notions of simulation, and associated coinduction up-to principles,
-including a novel mutually coinductive characterization of divergence-sensitive weak simulation.
+This library defines various notions of simulation,
+including a novel mutually coinductive characterization of divergence-sensitive weak simulation,
+and associated coinduction up-to techniques.
 
 The draft paper [*A Family of Sims with Diverging Interests*](https://www-verimag.imag.fr/~chappen/sims-draft-v1.pdf)
 documents this library.
@@ -36,4 +37,5 @@ This library is released under the GNU Lesser General Public License 3.0, or any
 This development mainly depends on Rocq >= 8.20 and the `coinduction` library.
 The CTree instantiation depends on the CTree library. This is a global dependency for now.
 
-`opam install . --deps-only` builds the library, then `dune build` builds it.
+`dune build coq-sims.opam && opam install . --deps-only` installs the dependencies,
+then `dune build` builds the library.
