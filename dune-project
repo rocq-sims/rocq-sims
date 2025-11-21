@@ -12,7 +12,7 @@
 (package
  (name coq-sims)
  (synopsis "A library of various strong and weak simulation relations")
- (version 0.1)
+ (version 0.2)
  (depends
   (coq (>= 8.20))
   (coq-coinduction (>= 1.9))
@@ -29,9 +29,9 @@
 (package
  (name coq-sims-examples)
  (synopsis "Examples for rocq-sims library")
- (version 0.1)
+ (version 0.2)
  (depends
-  (coq-sims (= 0.1)))
+  (coq-sims (= 0.2)))
  (tags (
    "category:CS/Semantics and Compilation/Semantics"
    "category:CS/Semantics and Compilation/Compilation"
