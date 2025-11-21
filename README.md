@@ -4,7 +4,7 @@ This library defines various notions of simulation,
 including a novel mutually coinductive characterization of divergence-sensitive weak simulation,
 and associated coinduction up-to techniques.
 
-The draft paper [*A Family of Sims with Diverging Interests*](https://www-verimag.imag.fr/~chappen/sims-draft-v1.pdf)
+The POPL'26 paper [*A Family of Sims with Diverging Interests*](https://doi.org/10.1145/3776714)
 documents this library.
 
 ## Theories
