@@ -2,5 +2,5 @@
 
 (coq.theory
  (name SimsExamples)
- (package coq-sims-examples)
+ (package rocq-sims-examples)
  (theories Sims))
