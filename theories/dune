@@ -2,4 +2,4 @@
 
 (coq.theory
  (name Sims)
- (package coq-sims))
+ (package rocq-sims))

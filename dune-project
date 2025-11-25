@@ -1,6 +1,6 @@
 (lang dune 3.8)
 (using coq 0.7)
-(name coq-sims)
+(name rocq-sims)
 
 (license "LGPL-3.0-or-later")
 (authors "Nicolas Chappe")
@@ -10,7 +10,7 @@
 (generate_opam_files true)
 
 (package
- (name coq-sims)
+ (name rocq-sims)
  (synopsis "A library of various strong and weak simulation relations")
  (version 0.2)
  (depends
@@ -27,11 +27,11 @@
 )))
 
 (package
- (name coq-sims-examples)
+ (name rocq-sims-examples)
  (synopsis "Examples for rocq-sims library")
  (version 0.2)
  (depends
-  (coq-sims (= 0.2)))
+  (rocq-sims (= 0.2)))
  (tags (
    "category:CS/Semantics and Compilation/Semantics"
    "category:CS/Semantics and Compilation/Compilation"
