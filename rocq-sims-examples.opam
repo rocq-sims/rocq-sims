@@ -16,7 +16,7 @@ homepage: "https://github.com/rocq-sims/rocq-sims"
 bug-reports: "https://github.com/rocq-sims/rocq-sims/issues"
 depends: [
   "dune" {>= "3.8"}
-  "coq-sims" {= "0.2"}
+  "rocq-sims" {= "0.2"}
   "odoc" {with-doc}
 ]
 build: [
